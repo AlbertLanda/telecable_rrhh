@@ -1,0 +1,138 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RHM – Sistema de Recursos Humanos</title>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+  <div class="login-page">
+    <!-- Brand Panel -->
+    <div class="login-brand">
+      <div class="login-brand-content">
+        <div class="brand-logo-row">
+          <div class="brand-logo-icon">RH</div>
+          <div>
+            <div class="brand-logo-name">RHM
+              <small>Sistema de Recursos Humanos</small>
+            </div>
+          </div>
+        </div>
+        <h1 class="brand-headline">Gestiona tu equipo<br/>con <em>inteligencia</em></h1>
+        <p class="brand-sub">Controla asistencia, planilla con cálculos AFP/ONP/EsSalud, vacaciones, documentos y más — todo desde un solo lugar.</p>
+        <div class="brand-features">
+          <div class="brand-feat">
+            <div class="brand-feat-icon"><i data-lucide="users" style="width:16px;height:16px;color:#a5b4fc"></i></div>
+            <span>Gestión completa de empleados y departamentos</span>
+          </div>
+          <div class="brand-feat">
+            <div class="brand-feat-icon"><i data-lucide="clock" style="width:16px;height:16px;color:#a5b4fc"></i></div>
+            <span>Control de asistencia en tiempo real</span>
+          </div>
+          <div class="brand-feat">
+            <div class="brand-feat-icon"><i data-lucide="banknote" style="width:16px;height:16px;color:#a5b4fc"></i></div>
+            <span>Planilla peruana con AFP, ONP y EsSalud</span>
+          </div>
+          <div class="brand-feat">
+            <div class="brand-feat-icon"><i data-lucide="bar-chart-2" style="width:16px;height:16px;color:#a5b4fc"></i></div>
+            <span>Reportes y análisis del capital humano</span>
+          </div>
+        </div>
+      </div>
+      <div class="login-brand-footer">© 2026 RHM · Todos los derechos reservados</div>
+    </div>
+
+    <!-- Form Panel -->
+    <div class="login-form-panel">
+      <div class="login-form-wrap">
+        <div class="login-welcome">
+          <h2>Bienvenido 👋</h2>
+          <p>Ingresa tus credenciales para acceder al sistema</p>
+        </div>
+
+        <form id="loginForm">
+          <div class="form-group">
+            <label class="form-label">Correo electrónico</label>
+            <div class="input-wrap">
+              <i data-lucide="mail" class="input-icon-l" style="width:16px;height:16px"></i>
+              <input type="email" id="email" placeholder="correo@empresa.com" value="admin@rhm.pe" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contraseña</label>
+            <div class="input-wrap">
+              <i data-lucide="lock" class="input-icon-l" style="width:16px;height:16px"></i>
+              <input type="password" id="password" placeholder="••••••••" value="admin123" required>
+              <button type="button" class="input-icon-r" onclick="togglePass()" id="eyeBtn">
+                <i data-lucide="eye" style="width:16px;height:16px"></i>
+              </button>
+            </div>
+          </div>
+          <div class="form-row-between">
+            <label class="check-label">
+              <input type="checkbox" checked> Mantener sesión iniciada
+            </label>
+            <a href="#" class="link-sm">¿Olvidaste tu contraseña?</a>
+          </div>
+          <button type="submit" class="btn-login">Iniciar Sesión</button>
+          <div class="login-error" id="loginError">Credenciales incorrectas. Intente de nuevo.</div>
+        </form>
+
+        <div class="demo-creds">
+          <div class="demo-creds-title">Credenciales de demo — clic para usar</div>
+          <div class="demo-list">
+            <div class="demo-item" onclick="useDemo('admin@rhm.pe','admin123')">
+              <span class="badge badge-indigo">Admin</span>
+              <span class="demo-info">admin@rhm.pe &nbsp;·&nbsp; admin123</span>
+            </div>
+            <div class="demo-item" onclick="useDemo('rh@rhm.pe','rh123')">
+              <span class="badge badge-purple">RH</span>
+              <span class="demo-info">rh@rhm.pe &nbsp;·&nbsp; rh123</span>
+            </div>
+            <div class="demo-item" onclick="useDemo('empleado@rhm.pe','emp123')">
+              <span class="badge badge-green">Empleado</span>
+              <span class="demo-info">empleado@rhm.pe &nbsp;·&nbsp; emp123</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    const USERS = {
+      'admin@rhm.pe':    { pass:'admin123', role:'Admin',    name:'Carlos Quispe',  initials:'CQ' },
+      'rh@rhm.pe':       { pass:'rh123',    role:'RH',       name:'Ana García',     initials:'AG' },
+      'empleado@rhm.pe': { pass:'emp123',   role:'Empleado', name:'Luis Torres',    initials:'LT' }
+    };
+
+    document.getElementById('loginForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const pass  = document.getElementById('password').value;
+      const user  = USERS[email];
+      const err   = document.getElementById('loginError');
+      if (user && user.pass === pass) {
+        sessionStorage.setItem('rhm_user', JSON.stringify({ email, ...user }));
+        window.location.href = 'app.html';
+      } else {
+        err.style.display = 'block';
+      }
+    });
+
+    function togglePass() {
+      const inp = document.getElementById('password');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    }
+    function useDemo(email, pass) {
+      document.getElementById('email').value = email;
+      document.getElementById('password').value = pass;
+      document.getElementById('loginError').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

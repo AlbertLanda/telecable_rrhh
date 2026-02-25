@@ -1,0 +1,149 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RHM – Panel de Control</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="s-logo">RH</div>
+                <div class="s-brand">RHM <small>Recursos Humanos</small></div>
+            </div>
+            <nav class="sidebar-nav" id="sidebarNav">
+                <!-- FULL NAV: Admin / RH -->
+                <div id="navFull">
+                    <div class="nav-section-label">Principal</div>
+                    <div class="nav-item active" data-view="dashboard">
+                        <i data-lucide="layout-dashboard"></i><span>Dashboard</span>
+                    </div>
+                    <div class="nav-section-label">Gestión</div>
+                    <div class="nav-item" data-view="empleados">
+                        <i data-lucide="users"></i><span>Empleados</span>
+                    </div>
+                    <div class="nav-item" data-view="departamentos">
+                        <i data-lucide="building-2"></i><span>Departamentos</span>
+                    </div>
+                    <div class="nav-section-label">Operaciones</div>
+                    <div class="nav-item" data-view="asistencia">
+                        <i data-lucide="clock"></i><span>Asistencia</span>
+                    </div>
+                    <div class="nav-item" data-view="planilla">
+                        <i data-lucide="banknote"></i><span>Planilla</span>
+                    </div>
+                    <div class="nav-item" data-view="vacaciones">
+                        <i data-lucide="umbrella"></i><span>Vacaciones</span>
+                        <span class="nav-badge" id="vacBadge">3</span>
+                    </div>
+                    <div class="nav-item" data-view="documentos">
+                        <i data-lucide="file-text"></i><span>Documentos</span>
+                    </div>
+                    <div class="nav-section-label">Análisis</div>
+                    <div class="nav-item" data-view="reportes">
+                        <i data-lucide="bar-chart-2"></i><span>Reportes</span>
+                    </div>
+                    <div class="nav-section-label">Sistema</div>
+                    <div class="nav-item" data-view="configuracion">
+                        <i data-lucide="settings"></i><span>Configuración</span>
+                    </div>
+                </div>
+
+                <!-- EMPLOYEE NAV: solo vista personal -->
+                <div id="navEmp" style="display:none">
+                    <div class="nav-section-label">Mi Espacio</div>
+                    <div class="nav-item active" data-view="mi-portal">
+                        <i data-lucide="house"></i><span>Mi Portal</span>
+                    </div>
+                    <div class="nav-item" data-view="mi-asistencia">
+                        <i data-lucide="clock"></i><span>Mi Asistencia</span>
+                    </div>
+                    <div class="nav-item" data-view="mis-boletas">
+                        <i data-lucide="receipt"></i><span>Mis Boletas</span>
+                    </div>
+                    <div class="nav-item" data-view="mis-documentos">
+                        <i data-lucide="file-text"></i><span>Mis Documentos</span>
+                    </div>
+                    <div class="nav-item" data-view="mis-vacaciones">
+                        <i data-lucide="umbrella"></i><span>Mis Vacaciones</span>
+                    </div>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" onclick="logout()">
+                    <div class="s-avatar" id="sidebarInitials">CQ</div>
+                    <div class="s-user-info">
+                        <div class="s-username" id="sidebarName">Carlos Quispe</div>
+                        <div class="s-role" id="sidebarRole">Administrador</div>
+                    </div>
+                    <i data-lucide="log-out" class="s-logout" style="width:15px;height:15px"></i>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN -->
+        <div class="main-wrap">
+            <header class="app-header">
+                <div class="header-title">
+                    <div class="header-page-name" id="headerTitle">Dashboard</div>
+                    <div class="header-breadcrumb" id="headerBreadcrumb">RHM / Dashboard</div>
+                </div>
+                <div class="header-search">
+                    <i data-lucide="search" class="header-search-icon" style="width:15px;height:15px"></i>
+                    <input type="text" placeholder="Buscar...">
+                </div>
+                <div class="header-actions">
+                    <div class="company-switcher" id="companySwitcher">
+                        <i data-lucide="building-2" style="width:16px;height:16px;"></i>
+                        <select id="currentCompany" onchange="switchCompany(this.value)">
+                            <!-- Options populated by JS -->
+                        </select>
+                    </div>
+                    <button class="hdr-btn" title="Notificaciones">
+                        <i data-lucide="bell" style="width:18px;height:18px"></i>
+                        <span class="notif-dot"></span>
+                    </button>
+                    <button class="hdr-btn" title="Ayuda">
+                        <i data-lucide="help-circle" style="width:18px;height:18px"></i>
+                    </button>
+                    <div class="header-user">
+                        <div class="h-avatar" id="headerInitials">CQ</div>
+                        <div>
+                            <div class="h-user-name" id="headerName">Carlos Quispe</div>
+                            <div class="h-user-role" id="headerRole">Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <div class="view-content" id="viewContent">
+                <!-- Views load here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal container -->
+    <div id="modalContainer"></div>
+
+    <script src="js/mock-data.js"></script>
+    <script src="js/views/dashboard.js"></script>
+    <script src="js/views/empleados.js"></script>
+    <script src="js/views/departamentos.js"></script>
+    <script src="js/views/asistencia.js"></script>
+    <script src="js/views/planilla.js"></script>
+    <script src="js/views/vacaciones.js"></script>
+    <script src="js/views/documentos.js"></script>
+    <script src="js/views/reportes.js"></script>
+    <script src="js/views/configuracion.js"></script>
+    <script src="js/views/mi-portal.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
