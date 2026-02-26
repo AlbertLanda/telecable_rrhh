@@ -8,6 +8,13 @@ class Sede(models.Model):
 
     def __str__(self):
         return self.nombre
+
+class Empresa(models.Model):
+    razon_social = models.CharField(max_length=150)
+    ruc = models.CharField(max_length=11, unique=True)
+
+    def __str__(self):
+        return f"{self.razon_social} (RUC: {self.ruc})"
     
 class Departamento(models.Model):
     # Django crea el 'id' automáticamente, no hay que ponerlo
@@ -45,6 +52,7 @@ class Empleado(models.Model):
     fecha_nacimiento = models.DateField(blank=True, null=True)
     fecha_ingreso = models.DateField(blank=True, null=True)
     sede = models.ForeignKey(Sede, on_delete=models.SET_NULL, null=True, related_name='empleados')
+    empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados')
     
     # Relaciones con las tablas de arriba
     departamento = models.ForeignKey(Departamento, on_delete=models.SET_NULL, null=True)
@@ -64,8 +72,16 @@ class Documento(models.Model):
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='documentos')
     nombre_archivo = models.CharField(max_length=255)
     tipo_documento = models.CharField(max_length=50, blank=True, null=True)
+    
+    # EL ARCHIVO FÍSICO (PDF)
+    archivo = models.FileField(upload_to='documentos/', null=True, blank=True) 
+    
     fecha_subida = models.DateTimeField(auto_now_add=True)
     tamaño_kb = models.IntegerField(blank=True, null=True)
+    
+    # CAMPOS PARA LA FIRMA DIGITAL DEL EMPLEADO
+    firmado = models.BooleanField(default=False)
+    fecha_firma = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.nombre_archivo} - {self.empleado.nombres}"

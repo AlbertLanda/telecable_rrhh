@@ -9,9 +9,11 @@
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 
 <body>
+    {% csrf_token %}
     <div class="app-layout">
         <!-- SIDEBAR -->
         <aside class="sidebar" id="sidebar">
@@ -157,25 +159,25 @@
     <script src="{% static 'js/mock-data.js' %}"></script>
     
     <script>
+        const realEmpresas = JSON.parse('{{ empresas_json|escapejs }}');
         const realSedes = JSON.parse('{{ sedes_json|escapejs }}');
         const realDepartamentos = JSON.parse('{{ deptos_json|escapejs }}');
         const realPuestos = JSON.parse('{{ puestos_json|escapejs }}');
         const realEmpleados = JSON.parse('{{ emps_json|escapejs }}');
         const realAsistencias = JSON.parse('{{ asis_json|escapejs }}');
         const realVacaciones = JSON.parse('{{ vac_json|escapejs }}');
+        const realDocumentos = JSON.parse('{{ docs_json|escapejs }}');
         const realWeeklyAtt = JSON.parse('{{ weekly_json|escapejs }}');
         
+        MOCK.empresas = realEmpresas; // ¡Ahora sí usará todas las de tu BD!
         MOCK.sedes = realSedes;
         MOCK.departamentos = realDepartamentos;
         MOCK.puestos = realPuestos;
         MOCK.empleados = realEmpleados;
         MOCK.asistencias = realAsistencias;
         MOCK.vacaciones = realVacaciones;
+        MOCK.documentos = realDocumentos;
         MOCK.weeklyAttendance = realWeeklyAtt;
-        
-        MOCK.empresas = [
-            { id: 1, nombre: 'Telecable S.A.C.', ruc: '20100000000', direccion: 'Sede Principal', logo: 'TC' }
-        ];
     </script>
 
     <script src="{% static 'js/views/dashboard.js' %}"></script>

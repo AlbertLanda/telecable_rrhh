@@ -93,7 +93,10 @@ function renderDocumentos() {
 function initDocumentos() { }
 
 window.openSubirDoc = function () {
-  const empOptions = MOCK.empleados.map(e => `<option value="${e.id}">${empFullName(e)}</option>`).join('');
+  // Filtramos a los empleados por la sede actual para no confundir a RRHH
+  const empsSede = MOCK.empleados.filter(e => e.sedeId === currentSedeId);
+  const empOptions = empsSede.map(e => `<option value="${e.id}">${empFullName(e)}</option>`).join('');
+  
   openModal(`
   <div class="modal-overlay">
     <div class="modal">
@@ -102,31 +105,106 @@ window.openSubirDoc = function () {
         <button class="modal-close" onclick="closeModal()"><i data-lucide="x" style="width:14px;height:14px"></i></button>
       </div>
       <div class="modal-body">
-        <div class="form-grid">
-          <div class="field form-full"><label>Empleado *</label>
-            <select><option value="">Seleccionar empleado...</option>${empOptions}</select>
-          </div>
-          <div class="field"><label>Nombre del Documento *</label><input type="text" placeholder="Ej: Contrato 2026"></div>
-          <div class="field"><label>Tipo *</label>
-            <select><option>Contrato</option><option>ID</option><option>Recibo</option><option>Certificado</option><option>Otro</option></select>
-          </div>
-          <div class="field form-full">
-            <label>Archivo *</label>
-            <div style="border:2px dashed var(--border);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;background:var(--gray-50)" onclick="this.querySelector('input').click()">
-              <i data-lucide="upload-cloud" style="width:36px;height:36px;color:var(--text-muted);display:block;margin:0 auto 8px"></i>
-              <div style="font-size:.85rem;color:var(--text-secondary)">Haz clic o arrastra el archivo aquí</div>
-              <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">PDF, DOCX, PNG · Máx. 10 MB</div>
-              <input type="file" style="display:none" accept=".pdf,.docx,.png,.jpg">
+        <form id="formSubirDoc">
+            <div class="form-grid">
+            <div class="field form-full"><label>Empleado *</label>
+                <select id="docEmpId" required><option value="">Seleccionar empleado...</option>${empOptions}</select>
             </div>
-          </div>
-        </div>
+            <div class="field"><label>Nombre del Documento *</label><input type="text" id="docNombre" placeholder="Ej: Boleta Febrero 2026" required></div>
+            <div class="field"><label>Tipo *</label>
+                <select id="docTipo"><option>Boleta</option><option>Contrato</option><option>ID</option><option>Certificado</option><option>Otro</option></select>
+            </div>
+            <div class="field form-full">
+                <label>Archivo (PDF) *</label>
+                <input type="file" id="docArchivo" accept=".pdf" style="padding: 10px; border: 2px dashed var(--border); width: 100%; background: var(--gray-50); border-radius: var(--r);" required>
+            </div>
+            </div>
+        </form>
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="alert('✅ Documento subido exitosamente (demo)');closeModal()">
-          <i data-lucide="upload" style="width:14px;height:14px"></i> Subir
+        <button class="btn btn-primary" id="btnSubirDoc" onclick="subirDocumentoBD()">
+          <i data-lucide="upload" style="width:14px;height:14px"></i> Subir Archivo
         </button>
       </div>
     </div>
   </div>`);
+};
+
+window.subirDocumentoBD = async function() {
+    const btn = document.getElementById('btnSubirDoc');
+    
+    // 🛡️ ESCUDO ANTI-DOBLE CLIC: Si el botón ya está deshabilitado, ignoramos cualquier otro clic
+    if (btn.disabled) return;
+
+    const form = document.getElementById('formSubirDoc');
+    if(!form.checkValidity()) {
+        form.reportValidity(); // Muestra las alertas de "campo requerido"
+        return;
+    }
+
+    const originalHTML = btn.innerHTML;
+    
+    // BLOQUEAMOS EL BOTÓN AL INSTANTE
+    btn.innerHTML = `<i data-lucide="loader-2" class="lucide-spin" style="width:14px;height:14px"></i> Subiendo...`;
+    btn.disabled = true;
+    btn.style.opacity = '0.7'; // Le damos efecto visual de apagado
+    btn.style.cursor = 'not-allowed'; // Cambiamos el puntero del mouse
+    lucide.createIcons();
+
+    // Recolectamos los datos y el archivo físico
+    const formData = new FormData();
+    formData.append('empId', document.getElementById('docEmpId').value);
+    formData.append('nombre', document.getElementById('docNombre').value);
+    formData.append('tipo', document.getElementById('docTipo').value);
+    formData.append('archivo', document.getElementById('docArchivo').files[0]);
+
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+    try {
+        const response = await fetch('/api/documentos/subir/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf },
+            body: formData 
+        });
+
+        const result = await response.json();
+        
+        if(result.success) {
+            closeModal(); // Cerramos el formulario de subida
+            
+            // ABRIMOS EL MODAL DE ÉXITO ESTILO ENTERPRISE 😎
+            setTimeout(() => {
+                openModal(`
+                  <div class="modal-overlay">
+                    <div class="modal" style="max-width: 380px; text-align: center; padding: 40px 20px;">
+                        <div style="width: 70px; height: 70px; background: var(--success-50); color: var(--success); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                            <i data-lucide="check" style="width: 36px; height: 36px;"></i>
+                        </div>
+                        <h3 style="font-size: 1.4rem; margin-bottom: 10px; font-weight: 800;">¡Subida Exitosa!</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 25px; line-height: 1.5;">El documento se ha encriptado y guardado de forma segura en el repositorio del empleado.</p>
+                        <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 14px;" onclick="window.location.reload();">Continuar</button>
+                    </div>
+                  </div>
+                `);
+            }, 100);
+            
+        } else {
+            // SI HAY ERROR, DESBLOQUEAMOS EL BOTÓN PARA QUE INTENTE DE NUEVO
+            alert("❌ Error: " + result.message);
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            lucide.createIcons();
+        }
+    } catch(e) {
+        // SI SE CAE EL INTERNET, DESBLOQUEAMOS EL BOTÓN
+        alert("❌ Error de conexión al servidor.");
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        lucide.createIcons();
+    }
 };

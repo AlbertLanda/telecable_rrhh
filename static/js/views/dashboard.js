@@ -69,8 +69,9 @@ function renderDashboard() {
       <p style="text-transform: capitalize;">${fechaLarga} · Bienvenido a Telecable RR.HH.</p>
     </div>
     <div class="view-header-actions">
-      <button class="btn btn-ghost"><i data-lucide="download" style="width:15px;height:15px"></i> Exportar</button>
-      <button class="btn btn-primary" onclick="navigate('empleados')"><i data-lucide="plus" style="width:15px;height:15px"></i> Nuevo Empleado</button>
+      <button class="btn btn-ghost" onclick="window.print()" title="Imprimir o guardar como PDF">
+        <i data-lucide="printer" style="width:15px;height:15px"></i> Imprimir Resumen
+      </button>
     </div>
   </div>
 

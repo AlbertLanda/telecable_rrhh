@@ -1,26 +1,17 @@
-"""
-URL configuration for core project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path
-from apps.empleados.views import login_view, app_view, api_login
+from apps.empleados.views import login_view, app_view, api_login, api_crear_empleado, api_subir_documento
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
-    path('admin/', admin.site.urls), # Tu panel de jefe
-    path('', login_view, name='login'), # La página principal (index.html)
-    path('app/', app_view, name='app'), # El sistema (app.html)
-    path('api/login/', api_login, name='api_login'), # <-- ¡ESTA ES LA RUTA QUE FALTABA!
+    path('admin/', admin.site.urls),
+    path('', login_view, name='login'),
+    path('app/', app_view, name='app'),
+    path('api/login/', api_login, name='api_login'),
+    path('api/empleados/crear/', api_crear_empleado, name='api_crear_empleado'),
+    path('api/documentos/subir/', api_subir_documento, name='api_subir_documento'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

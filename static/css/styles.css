@@ -1886,3 +1886,57 @@ tbody tr:hover {
 
 .notif-text { font-size: 0.82rem; color: var(--text-primary); line-height: 1.4; }
 .notif-time { font-size: 0.72rem; color: var(--text-muted); margin-top: 5px; display: block; font-weight: 500; }
+
+/* =========================================
+   MODO IMPRESIÓN (PDF Y PAPEL) 🖨️
+   ========================================= */
+@media print {
+  /* 1. Forzar que se impriman los colores de fondo (Gráficos y Tarjetas) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 2. Ocultar todo lo que NO es el reporte */
+  .sidebar,
+  .app-header,
+  .view-header-actions,
+  button,
+  .modal-overlay {
+    display: none !important;
+  }
+
+  /* 3. Expandir el contenido para que use toda la hoja A4 */
+  body, .app-layout {
+    background: white !important;
+  }
+  
+  .main-wrap {
+    margin-left: 0 !important; /* Quitamos el espacio que dejaba el menú lateral */
+    width: 100% !important;
+    min-height: auto !important;
+  }
+
+  .view-content {
+    padding: 0 !important; /* Quitamos bordes muertos */
+  }
+
+  /* 4. Limpiar las tarjetas para que se vean como documento formal */
+  .card, .stat-card {
+    box-shadow: none !important; /* Sin sombras 3D */
+    border: 1px solid #cbd5e1 !important; /* Borde gris suavecito */
+    break-inside: avoid; /* Evita que una tarjeta se corte a la mitad al cambiar de página */
+  }
+
+  /* 5. Asegurar que las cuadrículas no se rompan */
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 10px !important;
+  }
+  .grid-2 {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+}

@@ -1,7 +1,8 @@
 from django.contrib import admin
-from .models import Departamento, Puesto, Empleado, Documento, Sede, PerfilUsuario
+from .models import Departamento, Puesto, Empleado, Documento, Sede, PerfilUsuario, Empresa
 
 # Aquí le decimos a Django que muestre estas tablas en el panel
+admin.site.register(Empresa)
 admin.site.register(Sede)
 admin.site.register(Departamento)
 admin.site.register(Puesto)

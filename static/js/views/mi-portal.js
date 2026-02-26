@@ -9,6 +9,14 @@ function myEmp() { return getEmp(myEmpId); }
 // ─── MI PORTAL (Home) ────────────────────────────────────────
 function renderMiPortal() {
   const emp = myEmp();
+  if (!emp) {
+      return `
+      <div class="empty-state" style="padding: 100px 20px;">
+        <i data-lucide="user-x" style="width: 64px; height: 64px; margin: 0 auto 20px; color: var(--text-muted); opacity: 0.5;"></i>
+        <h2 style="font-size: 1.5rem; margin-bottom: 10px; color: var(--text-primary);">Perfil no vinculado</h2>
+        <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto; line-height:1.5;">Tu usuario actual (<strong>${currentUser.email}</strong>) no está enlazado a ninguna ficha de empleado activa. Por favor, asegúrate de iniciar sesión con el correo corporativo correcto o contacta a RR.HH.</p>
+      </div>`;
+  }
   const dept = getDept(emp.deptId);
   const puesto = getPuesto(emp.puestoId);
   const p = calcPlanilla(emp);
@@ -380,9 +388,9 @@ function renderMisDocumentos() {
                     <i data-lucide="pen-tool" style="width:13px;height:13px"></i> Firmar
                 </button>
             ` : ''}
-            <button class="btn btn-ghost btn-sm" style="flex:1; justify-content:center">
-                <i data-lucide="download" style="width:13px;height:13px"></i> Descargar
-            </button>
+            <a href="${doc.url}" target="_blank" class="btn btn-ghost btn-sm" style="flex:1; justify-content:center; text-decoration: none;">
+                <i data-lucide="external-link" style="width:13px;height:13px"></i> Ver Archivo
+            </a>
         </div>
       </div>
     </div>`).join('')}

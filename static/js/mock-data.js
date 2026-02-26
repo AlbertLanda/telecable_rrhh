@@ -146,7 +146,7 @@ const MOCK = {
 // Helpers
 function getEmp(id) { return MOCK.empleados.find(e => e.id === id); }
 function getDept(id) { return MOCK.departamentos.find(d => d.id === id); }
-function getPuesto(id) { return MOCK.puestos.find(p => p.id === p.id); } // Fixed typo in original but keeping for now if it works
+function getPuesto(id) { return MOCK.puestos.find(p => p.id === id); }
 function empFullName(e) { return `${e.nombres} ${e.apellidos}`; }
 function fmtSoles(n) { return 'S/ ' + Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtDate(str) {
@@ -187,19 +187,40 @@ function empInitials(e) { return (e.nombres[0] + e.apellidos[0]).toUpperCase(); 
 
 // Planilla calculation (Peru rules)
 function calcPlanilla(emp) {
-  const bruto = emp.sueldo;
-  const asigFam = 102.50; // aplica si tiene familia
+  const bruto = Number(emp.sueldo) || 0;
+  
+  // 1. REGLA PARA HONORARIOS Y PRACTICANTES (Sin descuentos de ley)
+  if (emp.contrato === 'Recibo por Honorarios' || emp.contrato === 'Practicante') {
+      return {
+          bruto: bruto,
+          asigFam: 0,
+          brutoTotal: bruto,
+          afpMonto: 0,
+          afpLabel: emp.contrato === 'Practicante' ? 'Modalidad Formativa' : 'Sin retención (4ta Cat.)',
+          essalud: 0,
+          neto: bruto // Reciben su dinero líquido
+      };
+  }
+
+  // 2. REGLA PARA PLANILLA REGULAR (Indefinido / Plazo Fijo)
+  const asigFam = 102.50; // Asignación familiar estándar
   const brutoTotal = bruto + asigFam;
+  
   let afpMonto = 0, afpLabel = '';
   if (emp.afp === 'ONP') {
     afpMonto = brutoTotal * 0.13;
     afpLabel = 'ONP 13%';
-  } else {
+  } else if (emp.afp && emp.afp !== 'Sin Pensión') {
     // AFP privada: ~10% aporte + 1.74% comisión + 1.35% seguro ≈ 13.09%
     afpMonto = brutoTotal * 0.1309;
-    afpLabel = `${emp.afp} ~13%`;
+    afpLabel = `${emp.afp} ~13.09%`;
+  } else {
+    afpMonto = 0;
+    afpLabel = 'Sin retención';
   }
-  const essalud = brutoTotal * 0.09; // cargo empleador
+  
+  const essalud = brutoTotal * 0.09; // Cargo del empleador
   const neto = brutoTotal - afpMonto;
+  
   return { bruto, asigFam, brutoTotal, afpMonto, afpLabel, essalud, neto };
 }

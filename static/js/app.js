@@ -34,7 +34,15 @@ function init() {
     currentUser = JSON.parse(stored);
 
     isEmployee = currentUser.role === 'Empleado';
-    myEmpId = USER_EMP_MAP[currentUser.email] ?? null;
+    
+    // 🔥 MAGIA: Autodetectar al empleado por su Email o DNI en la Base de Datos Real
+    const empReal = MOCK.empleados.find(e => 
+        e.email.toLowerCase() === currentUser.email.toLowerCase() || 
+        e.dni === currentUser.email || 
+        e.codigo === currentUser.email
+    );
+    myEmpId = empReal ? empReal.id : null;
+    
     VIEWS = isEmployee ? VIEWS_EMP : VIEWS_FULL;
 
     // Cargar la última sede seleccionada
