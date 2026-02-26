@@ -1,5 +1,14 @@
 from django.db import models
+from django.contrib.auth.models import User
 
+
+class Sede(models.Model):
+    nombre = models.CharField(max_length=100)
+    direccion = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return self.nombre
+    
 class Departamento(models.Model):
     # Django crea el 'id' automáticamente, no hay que ponerlo
     nombre = models.CharField(max_length=100)
@@ -35,6 +44,7 @@ class Empleado(models.Model):
     telefono = models.CharField(max_length=20, blank=True, null=True)
     fecha_nacimiento = models.DateField(blank=True, null=True)
     fecha_ingreso = models.DateField(blank=True, null=True)
+    sede = models.ForeignKey(Sede, on_delete=models.SET_NULL, null=True, related_name='empleados')
     
     # Relaciones con las tablas de arriba
     departamento = models.ForeignKey(Departamento, on_delete=models.SET_NULL, null=True)
@@ -59,3 +69,22 @@ class Documento(models.Model):
 
     def __str__(self):
         return f"{self.nombre_archivo} - {self.empleado.nombres}"
+
+class PerfilUsuario(models.Model):
+    ROLES = [
+        ('Admin', 'Administrador del Sistema'),
+        ('RRHH', 'Recursos Humanos'),
+        ('Empleado', 'Empleado Base'),
+    ]
+    
+    # 1. Conectamos con el Usuario de Login de Django
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
+    
+    # 2. Le asignamos un Rol
+    rol = models.CharField(max_length=20, choices=ROLES, default='Empleado')
+    
+    # 3. Lo enlazamos a su ficha real de Recursos Humanos (Opcional, por si es RRHH o Admin)
+    empleado = models.OneToOneField(Empleado, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.usuario.username} - {self.rol}"

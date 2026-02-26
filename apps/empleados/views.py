@@ -1,9 +1,107 @@
+import json
+from datetime import date, timedelta
+from django.http import JsonResponse
+from django.contrib.auth import authenticate, login as django_login
 from django.shortcuts import render
 
+# Importamos las tablas reales
+from .models import Empleado, Departamento, Puesto, Sede
+from apps.asistencia.models import Asistencia
+from apps.vacaciones.models import Vacacion
+
 def login_view(request):
-    # Esta vista mostrará el index.html (Login)
     return render(request, 'index.html')
 
 def app_view(request):
-    # Esta vista mostrará el app.html (El sistema)
-    return render(request, 'app.html')
+    # 1. Traer Sedes Reales
+    sedes = Sede.objects.all()
+    sedes_list = [{"id": s.id, "nombre": s.nombre} for s in sedes]
+
+    # 2. Departamentos
+    deptos = Departamento.objects.all()
+    deptos_list = [{"id": d.id, "nombre": d.nombre, "desc": d.descripcion or "", "color": d.color or "#6366f1", "jefe": d.jefe_nombre or "Sin jefe", "count": Empleado.objects.filter(departamento=d).count()} for d in deptos]
+        
+    # 3. Puestos
+    puestos = Puesto.objects.all()
+    puestos_list = [{"id": p.id, "nombre": p.nombre, "deptId": p.departamento_id} for p in puestos]
+
+    # 4. Empleados (Le agregamos sedeId)
+    empleados = Empleado.objects.all()
+    emps_list = [{"id": e.id, "codigo": e.codigo, "nombres": e.nombres, "apellidos": e.apellidos, "dni": e.dni, "email": e.email, "tel": e.telefono or "", "nacimiento": str(e.fecha_nacimiento) if e.fecha_nacimiento else "", "ingreso": str(e.fecha_ingreso) if e.fecha_ingreso else "", "deptId": e.departamento_id, "puestoId": e.puesto_id, "sedeId": e.sede_id, "contrato": e.tipo_contrato or "No definido", "sueldo": float(e.sueldo_base) if e.sueldo_base else 0.0, "afp": e.afp_onp or "No aplica", "estado": e.estado, "av": e.avatar_color or "av-indigo", "genero": e.genero or ""} for e in empleados]
+
+    # 5. Asistencias
+    asistencias = Asistencia.objects.all()
+    asis_list = [{"id": a.id, "empId": a.empleado_id, "fecha": str(a.fecha), "entrada": a.hora_entrada.strftime('%H:%M') if a.hora_entrada else '—', "salida": a.hora_salida.strftime('%H:%M') if a.hora_salida else '—', "tipo": a.tipo, "obs": a.observaciones or ""} for a in asistencias]
+
+    # 6. Vacaciones
+    vacaciones = Vacacion.objects.all()
+    vac_list = [{"id": v.id, "empId": v.empleado_id, "inicio": str(v.fecha_inicio), "fin": str(v.fecha_fin), "dias": v.dias_totales or 0, "estado": v.estado, "motivo": v.motivo or "", "aprobadoPor": v.aprobado_por or ""} for v in vacaciones]
+
+    # 7. Cálculo real para el Gráfico Semanal
+    hoy = date.today()
+    dias_es = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    weekly_att = []
+    
+    for i in range(6, -1, -1):
+        d = hoy - timedelta(days=i)
+        day_str = f"{dias_es[d.weekday()]} {d.day}"
+        att_day = Asistencia.objects.filter(fecha=d)
+        
+        weekly_att.append({
+            "day": day_str,
+            "pres": att_day.filter(tipo='Asistencia').count(),
+            "tard": att_day.filter(tipo='Tardanza').count(),
+            "falt": att_day.filter(tipo='Falta').count()
+        })
+
+    context = {
+        "sedes_json": json.dumps(sedes_list),
+        "deptos_json": json.dumps(deptos_list),
+        "puestos_json": json.dumps(puestos_list),
+        "emps_json": json.dumps(emps_list),
+        "asis_json": json.dumps(asis_list),
+        "vac_json": json.dumps(vac_list),
+        "weekly_json": json.dumps(weekly_att),
+    }
+    
+    return render(request, 'app.html', context)
+
+def api_login(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            password = data.get('password')
+            
+            user = authenticate(request, username=username, password=password)
+            
+            if user is not None:
+                django_login(request, user) 
+                
+                # ----------------------------------------------------
+                # MAGIA DE ROLES: Buscamos qué perfil tiene este usuario
+                # ----------------------------------------------------
+                rol_asignado = 'Empleado' # Rol por defecto
+                
+                if hasattr(user, 'perfil'):
+                    # Si le creamos un perfil en el admin, usamos ese
+                    rol_asignado = user.perfil.rol
+                elif user.is_superuser:
+                    # Si es el superusuario original que creaste en consola
+                    rol_asignado = 'Admin'
+
+                # Tomamos su nombre real o su username
+                nombre_mostrar = user.first_name if user.first_name else user.username
+
+                return JsonResponse({
+                    'success': True, 
+                    'redirect_url': '/app/',
+                    'role': rol_asignado,
+                    'name': nombre_mostrar
+                })
+            else:
+                return JsonResponse({'success': False, 'message': 'Usuario o contraseña incorrectos.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': 'Error en el servidor.'})
+            
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})

@@ -16,10 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from apps.empleados.views import login_view, app_view
+from apps.empleados.views import login_view, app_view, api_login
 
 urlpatterns = [
     path('admin/', admin.site.urls), # Tu panel de jefe
     path('', login_view, name='login'), # La página principal (index.html)
     path('app/', app_view, name='app'), # El sistema (app.html)
+    path('api/login/', api_login, name='api_login'), # <-- ¡ESTA ES LA RUTA QUE FALTABA!
 ]

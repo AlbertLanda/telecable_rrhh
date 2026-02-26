@@ -26,39 +26,74 @@ let currentUser = null;
 let isEmployee = false;
 let myEmpId = null;
 let VIEWS = {};
-let currentCompanyId = 1;
+let currentSedeId = 1;
 
 function init() {
-    const stored = sessionStorage.getItem('rhm_user');
-    if (!stored) { window.location.href = 'index.html'; return; }
+    const stored = sessionStorage.getItem('rhm_user') || localStorage.getItem('rhm_user');
+    if (!stored) { window.location.href = '/'; return; }
     currentUser = JSON.parse(stored);
 
-    // Determine role
     isEmployee = currentUser.role === 'Empleado';
     myEmpId = USER_EMP_MAP[currentUser.email] ?? null;
     VIEWS = isEmployee ? VIEWS_EMP : VIEWS_FULL;
 
-    // Load last selected company
-    const savedCompanyId = localStorage.getItem('rhm_company_id');
-    if (savedCompanyId) currentCompanyId = parseInt(savedCompanyId);
+    // Cargar la última sede seleccionada
+    const savedSedeId = localStorage.getItem('rhm_sede_id');
+    if (savedSedeId) currentSedeId = parseInt(savedSedeId);
 
-    // Set user info in UI
+    // Setear info en UI
     const initials = currentUser.initials || (currentUser.name ? currentUser.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'US');
-    document.getElementById('sidebarInitials').textContent = initials;
-    document.getElementById('sidebarName').textContent = currentUser.name || currentUser.nombre;
-    document.getElementById('sidebarRole').textContent = currentUser.role;
     document.getElementById('headerInitials').textContent = initials;
     document.getElementById('headerName').textContent = currentUser.name || currentUser.nombre;
     document.getElementById('headerRole').textContent = currentUser.role;
 
-    // Poplate company switcher
-    const switcher = document.getElementById('currentCompany');
+    // Poblar el selector de Sedes de forma inteligente
+    const switcher = document.getElementById('currentSede');
     if (switcher) {
         if (isEmployee) {
-            document.getElementById('companySwitcher').style.display = 'none';
+            document.getElementById('sedeSwitcher').style.display = 'none';
         } else {
-            switcher.innerHTML = MOCK.empresas.map(c => `<option value="${c.id}" ${c.id === currentCompanyId ? 'selected' : ''}>${c.nombre}</option>`).join('');
+            if (MOCK.sedes && MOCK.sedes.length > 0) {
+                const sedeExists = MOCK.sedes.find(s => s.id === currentSedeId);
+                if (!sedeExists) currentSedeId = MOCK.sedes[0].id; // Fallback
+                
+                switcher.innerHTML = MOCK.sedes.map(s => 
+                    `<option value="${s.id}" ${s.id === currentSedeId ? 'selected' : ''}>${s.nombre}</option>`
+                ).join('');
+            } else {
+                switcher.innerHTML = `<option value="">⚠️ Sin sedes</option>`;
+            }
         }
+    }
+
+    // Poblar Notificaciones Reales
+    const pendVacs = MOCK.vacaciones ? MOCK.vacaciones.filter(v => v.estado === 'Pendiente') : [];
+    const notifList = document.getElementById('notifList');
+    const notifDot = document.getElementById('notifDot');
+    const vacBadge = document.getElementById('vacBadge');
+
+    if (pendVacs.length > 0) {
+        if(notifDot) notifDot.style.display = 'block';
+        if (vacBadge) vacBadge.textContent = pendVacs.length;
+        
+        if(notifList) {
+            notifList.innerHTML = pendVacs.map(v => {
+                const emp = getEmp(v.empId);
+                const empName = emp ? empFullName(emp) : 'Un empleado';
+                return `
+                <div class="notif-item" onclick="navigate('vacaciones'); toggleDropdown('notifDropdown');">
+                    <div class="notif-icon"><i data-lucide="umbrella" style="width:18px;"></i></div>
+                    <div>
+                        <div class="notif-text">El personal <strong>${empName}</strong> solicitó vacaciones.</div>
+                        <span class="notif-time">Requiere tu aprobación</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+    } else {
+        if(notifDot) notifDot.style.display = 'none';
+        if (vacBadge) vacBadge.style.display = 'none';
+        if(notifList) notifList.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:0.85rem;"><i data-lucide="check-circle" style="opacity:0.5; margin-bottom:8px; display:block; margin-inline:auto;"></i>Todo al día. No hay notificaciones nuevas.</div>`;
     }
 
     // Show correct sidebar nav
@@ -70,12 +105,10 @@ function init() {
         document.getElementById('navEmp').style.display = 'none';
     }
 
-    // Nav click handlers — pick from both nav groups
     document.querySelectorAll('.nav-item[data-view]').forEach(item => {
         item.addEventListener('click', () => navigate(item.dataset.view));
     });
 
-    // Hash routing
     const hash = window.location.hash.replace('#', '');
     const defaultView = isEmployee ? 'mi-portal' : 'dashboard';
     navigate(VIEWS[hash] ? hash : defaultView);
@@ -83,11 +116,11 @@ function init() {
     lucide.createIcons();
 }
 
-function switchCompany(id) {
-    currentCompanyId = parseInt(id);
-    localStorage.setItem('rhm_company_id', id);
+function switchSede(id) {
+    currentSedeId = parseInt(id);
+    localStorage.setItem('rhm_sede_id', id);
     const hash = window.location.hash.replace('#', '');
-    navigate(hash);
+    navigate(hash); // Recarga la vista actual con la nueva sede
 }
 
 function navigate(viewName) {
@@ -114,7 +147,8 @@ function navigate(viewName) {
 
 function logout() {
     sessionStorage.removeItem('rhm_user');
-    window.location.href = 'index.html';
+    localStorage.removeItem('rhm_user');
+    window.location.href = '/';
 }
 
 function openModal(html) {
@@ -195,6 +229,31 @@ function confirmSignature(docId) {
 
     // Potential notification
     alert('¡Boleta firmada con éxito!');
+}
+
+// Funciones para Menús Desplegables
+function toggleDropdown(id) {
+    // Cerramos todos los demás primero
+    document.querySelectorAll('.dropdown-menu').forEach(el => {
+        if(el.id !== id) el.classList.remove('show');
+    });
+    // Abrimos el que clickeamos
+    document.getElementById(id).classList.toggle('show');
+}
+
+// Cerrar al hacer clic afuera
+window.addEventListener('click', function(e) {
+    if (!e.target.closest('.hdr-btn') && !e.target.closest('.dropdown-menu')) {
+        document.querySelectorAll('.dropdown-menu').forEach(el => el.classList.remove('show'));
+    }
+});
+
+// Función para cambiar de Sede
+function switchSede(id) {
+    currentCompanyId = parseInt(id);
+    localStorage.setItem('rhm_sede_id', id);
+    const hash = window.location.hash.replace('#', '');
+    navigate(hash);
 }
 
 window.addEventListener('DOMContentLoaded', init);

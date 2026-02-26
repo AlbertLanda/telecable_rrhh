@@ -1,138 +1,590 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RHM – Sistema de Recursos Humanos</title>
+  <title>RHM – Portal de Recursos Humanos</title>
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <style>
+    /* =========================================
+       DISEÑO EJECUTIVO Y RESPONSIVO (LOGIN)
+       ========================================= */
+    .login-page {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+      background-color: #ffffff;
+    }
+
+    /* --- PANEL IZQUIERDO: IMAGEN Y TEXTOS --- */
+    .login-brand {
+      background-image: linear-gradient(rgba(15, 23, 42, 0.75), rgba(30, 27, 75, 0.9)), url('https://cdn.questionpro.com/userimages/site_media/portada-recursos-humanos.png');
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      text-align: center;
+      position: relative;
+    }
+
+    .brand-logo-icon {
+      width: 70px;
+      height: 70px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: white;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+    }
+
+    .brand-headline {
+      font-size: 2.8rem;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.1;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-sub {
+      color: #cbd5e1;
+      font-size: 1.1rem;
+      line-height: 1.6;
+      max-width: 85%;
+      font-weight: 400;
+    }
+
+    .login-brand-footer {
+      position: absolute;
+      bottom: 30px;
+      width: 100%;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+
+    /* --- PANEL DERECHO: FORMULARIO --- */
+    .login-form-panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    .login-form-wrap {
+      max-width: 400px;
+      width: 100%;
+    }
+
+    .login-welcome {
+      margin-bottom: 35px;
+    }
+
+    .login-welcome h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #1e293b;
+      letter-spacing: -0.5px;
+    }
+
+    .login-welcome p {
+      color: #64748b;
+      font-size: 0.95rem;
+      margin-top: 5px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-icon-l {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    .input-icon-r {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .input-icon-r:hover {
+      color: #4f46e5;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      background-color: #f8fafc;
+      border: 2px solid transparent;
+      border-radius: 12px;
+      padding: 16px 45px;
+      font-size: 0.95rem;
+      color: #0f172a;
+      transition: all 0.3s ease;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+
+    .input-wrap input:focus {
+      background-color: #ffffff;
+      border-color: #6366f1;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+      outline: none;
+    }
+
+    .form-row-between {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 24px;
+      margin-bottom: 30px;
+    }
+
+    .check-label {
+      font-weight: 500;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .check-label input[type="checkbox"] {
+      accent-color: #6366f1;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .link-sm {
+      color: #6366f1;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: 0.2s;
+    }
+
+    .link-sm:hover {
+      color: #4f46e5;
+      text-decoration: underline;
+    }
+
+    .btn-login {
+      width: 100%;
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      color: white;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+      letter-spacing: 0.5px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 35px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-login:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .login-error {
+      margin-top: 15px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      background-color: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #ef4444;
+      display: none;
+    }
+
+    input[type="password"]::-ms-reveal,
+    input[type="password"]::-ms-clear {
+      display: none;
+    }
+
+    /* --- MODAL DE RECUPERACIÓN DE CLAVE --- */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: #ffffff;
+      padding: 35px;
+      border-radius: 20px;
+      text-align: center;
+      max-width: 360px;
+      width: 90%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      transform: translateY(20px);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.show .modal-content {
+      transform: translateY(0);
+    }
+
+    .modal-icon-wrap {
+      width: 60px;
+      height: 60px;
+      background: rgba(99, 102, 241, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      color: #6366f1;
+    }
+
+    .modal-content h3 {
+      color: #1e293b;
+      font-size: 1.4rem;
+      margin-bottom: 10px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .modal-content p {
+      color: #64748b;
+      font-size: 0.95rem;
+      margin-bottom: 25px;
+      line-height: 1.5;
+    }
+
+    /* --- MODAL RECUPERACIÓN --- */
+    .contact-box {
+        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+        padding: 15px; margin-bottom: 25px; text-align: left;
+    }
+    .contact-box p { 
+        color: #475569; margin: 12px 0; font-size: 0.9rem; 
+        display: flex; align-items: flex-start; gap: 12px; /* flex-start para que el ícono quede arriba */
+    }
+    .contact-box p svg { 
+        flex-shrink: 0; /* Evita que el ícono se aplaste */
+        margin-top: 2px;
+    }
+    .contact-info { 
+        flex: 1; 
+        word-break: break-word; /* 🪄 LA MAGIA: Rompe los correos largos si no caben */
+    }
+    .contact-box strong { 
+        color: #0f172a; font-weight: 700; 
+        display: block; /* Pone el dato en la línea de abajo para que se vea más ordenado */
+        margin-top: 2px;
+    }
+
+    .btn-close-modal {
+      background: #f1f5f9;
+      color: #475569;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s;
+      width: 100%;
+      font-size: 0.95rem;
+    }
+
+    .btn-close-modal:hover {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+
+    /* --- RESPONSIVIDAD PARA CELULARES (Estilo Tarjeta Superpuesta) --- */
+    @media (max-width: 850px) {
+      .login-page {
+        display: block;
+        /* Quitamos el grid para apilar */
+        background-color: #f1f5f9;
+        /* Fondo gris claro para el sobrante */
+      }
+
+      .login-brand {
+        padding: 40px 20px 60px 20px;
+        /* Padding extra abajo para la superposición */
+        min-height: 280px;
+        /* Altura del banner */
+      }
+
+      .brand-logo-icon {
+        width: 55px;
+        height: 55px;
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+      }
+
+      .brand-headline {
+        font-size: 2rem;
+      }
+
+      .brand-sub {
+        font-size: 0.95rem;
+        max-width: 100%;
+      }
+
+      .login-brand-footer {
+        display: none;
+        /* Ocultamos el footer para no amontonar */
+      }
+
+      .login-form-panel {
+        padding: 40px 24px;
+        background-color: #ffffff;
+        border-radius: 30px 30px 0 0;
+        /* Bordes redondeados solo arriba */
+        margin-top: -30px;
+        /* EFECTO MAGIA: Sube la tarjeta sobre la imagen */
+        position: relative;
+        z-index: 10;
+        box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.1);
+        /* Sombra hacia arriba */
+        min-height: calc(100vh - 250px);
+        align-items: flex-start;
+        /* El formulario se pega arriba en celular */
+      }
+
+      .login-form-wrap {
+        margin-top: 10px;
+      }
+    }
+  </style>
 </head>
+
 <body>
   <div class="login-page">
-    <!-- Brand Panel -->
     <div class="login-brand">
-      <div class="login-brand-content">
-        <div class="brand-logo-row">
-          <div class="brand-logo-icon">RH</div>
-          <div>
-            <div class="brand-logo-name">RHM
-              <small>Sistema de Recursos Humanos</small>
-            </div>
-          </div>
-        </div>
-        <h1 class="brand-headline">Gestiona tu equipo<br/>con <em>inteligencia</em></h1>
-        <p class="brand-sub">Controla asistencia, planilla con cálculos AFP/ONP/EsSalud, vacaciones, documentos y más — todo desde un solo lugar.</p>
-        <div class="brand-features">
-          <div class="brand-feat">
-            <div class="brand-feat-icon"><i data-lucide="users" style="width:16px;height:16px;color:#a5b4fc"></i></div>
-            <span>Gestión completa de empleados y departamentos</span>
-          </div>
-          <div class="brand-feat">
-            <div class="brand-feat-icon"><i data-lucide="clock" style="width:16px;height:16px;color:#a5b4fc"></i></div>
-            <span>Control de asistencia en tiempo real</span>
-          </div>
-          <div class="brand-feat">
-            <div class="brand-feat-icon"><i data-lucide="banknote" style="width:16px;height:16px;color:#a5b4fc"></i></div>
-            <span>Planilla peruana con AFP, ONP y EsSalud</span>
-          </div>
-          <div class="brand-feat">
-            <div class="brand-feat-icon"><i data-lucide="bar-chart-2" style="width:16px;height:16px;color:#a5b4fc"></i></div>
-            <span>Reportes y análisis del capital humano</span>
-          </div>
-        </div>
-      </div>
-      <div class="login-brand-footer">© 2026 RHM · Todos los derechos reservados</div>
+      <div class="brand-logo-icon">RH</div>
+      <h1 class="brand-headline">Portal de<br>Recursos Humanos</h1>
+      <p class="brand-sub">Plataforma centralizada para la gestión del talento, control de asistencia y administración
+        de planillas.</p>
+
+      <div class="login-brand-footer">© 2026 RHM · Plataforma Ejecutiva</div>
     </div>
 
-    <!-- Form Panel -->
     <div class="login-form-panel">
       <div class="login-form-wrap">
         <div class="login-welcome">
           <h2>Bienvenido 👋</h2>
-          <p>Ingresa tus credenciales para acceder al sistema</p>
+          <p>Ingresa tus credenciales corporativas</p>
         </div>
 
         <form id="loginForm">
+          {% csrf_token %}
           <div class="form-group">
-            <label class="form-label">Correo electrónico</label>
+            <label class="form-label">Usuario o Correo</label>
             <div class="input-wrap">
-              <i data-lucide="mail" class="input-icon-l" style="width:16px;height:16px"></i>
-              <input type="email" id="email" placeholder="correo@empresa.com" value="admin@rhm.pe" required>
+              <i data-lucide="user" class="input-icon-l" style="width:18px;height:18px"></i>
+              <input type="text" id="email" placeholder="Ej: Diego" required autocomplete="off">
             </div>
           </div>
+
           <div class="form-group">
             <label class="form-label">Contraseña</label>
             <div class="input-wrap">
-              <i data-lucide="lock" class="input-icon-l" style="width:16px;height:16px"></i>
-              <input type="password" id="password" placeholder="••••••••" value="admin123" required>
-              <button type="button" class="input-icon-r" onclick="togglePass()" id="eyeBtn">
-                <i data-lucide="eye" style="width:16px;height:16px"></i>
+              <i data-lucide="lock" class="input-icon-l" style="width:18px;height:18px"></i>
+              <input type="password" id="password" placeholder="••••••••" required>
+              <button type="button" class="input-icon-r" onclick="togglePass()">
+                <i data-lucide="eye" style="width:18px;height:18px" id="eyeIcon"></i>
               </button>
             </div>
           </div>
+
           <div class="form-row-between">
             <label class="check-label">
-              <input type="checkbox" checked> Mantener sesión iniciada
+              <input type="checkbox" id="rememberMe" checked> Mantener sesión iniciada
             </label>
-            <a href="#" class="link-sm">¿Olvidaste tu contraseña?</a>
+            <a href="#" onclick="abrirModal(event)" class="link-sm">¿Olvidaste tu clave?</a>
           </div>
-          <button type="submit" class="btn-login">Iniciar Sesión</button>
-          <div class="login-error" id="loginError">Credenciales incorrectas. Intente de nuevo.</div>
-        </form>
 
-        <div class="demo-creds">
-          <div class="demo-creds-title">Credenciales de demo — clic para usar</div>
-          <div class="demo-list">
-            <div class="demo-item" onclick="useDemo('admin@rhm.pe','admin123')">
-              <span class="badge badge-indigo">Admin</span>
-              <span class="demo-info">admin@rhm.pe &nbsp;·&nbsp; admin123</span>
-            </div>
-            <div class="demo-item" onclick="useDemo('rh@rhm.pe','rh123')">
-              <span class="badge badge-purple">RH</span>
-              <span class="demo-info">rh@rhm.pe &nbsp;·&nbsp; rh123</span>
-            </div>
-            <div class="demo-item" onclick="useDemo('empleado@rhm.pe','emp123')">
-              <span class="badge badge-green">Empleado</span>
-              <span class="demo-info">empleado@rhm.pe &nbsp;·&nbsp; emp123</span>
-            </div>
-          </div>
-        </div>
+          <button type="submit" class="btn-login">Acceder al Sistema</button>
+
+          <div class="login-error" id="loginError"></div>
+        </form>
       </div>
     </div>
   </div>
 
+  <div class="modal-overlay" id="recoveryModal">
+    <div class="modal-content">
+      <div class="modal-icon-wrap"><i data-lucide="life-buoy" style="width:30px;height:30px"></i></div>
+      <h3>Recuperación de Acceso</h3>
+      <p>Por seguridad corporativa, la restauración de contraseñas se realiza internamente.</p>
+
+      <div class="contact-box">
+          <p>
+              <i data-lucide="smartphone" style="width:18px;height:18px;color:#6366f1"></i> 
+              <span class="contact-info">
+                  Soporte TI: 
+                  <strong>922 181 550 - 944 909 910</strong>
+              </span>
+          </p>
+          <p>
+              <i data-lucide="mail" style="width:18px;height:18px;color:#6366f1"></i> 
+              <span class="contact-info">
+                  RR.HH: 
+                  <strong>recursos.humanos@fibertheandes.com</strong>
+              </span>
+          </p>
+      </div>
+
+      <button onclick="cerrarModal()" class="btn-close-modal">Entendido</button>
+    </div>
+  </div>
   <script>
     lucide.createIcons();
-    const USERS = {
-      'admin@rhm.pe':    { pass:'admin123', role:'Admin',    name:'Carlos Quispe',  initials:'CQ' },
-      'rh@rhm.pe':       { pass:'rh123',    role:'RH',       name:'Ana García',     initials:'AG' },
-      'empleado@rhm.pe': { pass:'emp123',   role:'Empleado', name:'Luis Torres',    initials:'LT' }
-    };
 
-    document.getElementById('loginForm').addEventListener('submit', e => {
+    document.getElementById('loginForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const email = document.getElementById('email').value.trim();
-      const pass  = document.getElementById('password').value;
-      const user  = USERS[email];
-      const err   = document.getElementById('loginError');
-      if (user && user.pass === pass) {
-        sessionStorage.setItem('rhm_user', JSON.stringify({ email, ...user }));
-        window.location.href = 'app.html';
-      } else {
+
+      const usernameStr = document.getElementById('email').value.trim();
+      const passwordStr = document.getElementById('password').value;
+      const keepLogged = document.getElementById('rememberMe').checked;
+      const err = document.getElementById('loginError');
+      const btn = e.target.querySelector('button[type="submit"]');
+
+      const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+      if (!csrfInput) return;
+
+      const originalText = btn.innerText;
+      btn.innerHTML = "<i data-lucide='loader-2' class='lucide-spin' style='width:18px;height:18px;vertical-align:middle;margin-right:8px;'></i> Procesando...";
+      btn.disabled = true;
+      lucide.createIcons();
+
+      try {
+        const response = await fetch('/api/login/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfInput.value },
+          body: JSON.stringify({ username: usernameStr, password: passwordStr })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          const userData = {
+            email: usernameStr,
+            role: data.role,
+            name: data.name,
+            initials: data.name.substring(0, 2).toUpperCase()
+          };
+
+          if (keepLogged) {
+            localStorage.setItem('rhm_user', JSON.stringify(userData));
+            sessionStorage.removeItem('rhm_user');
+          } else {
+            sessionStorage.setItem('rhm_user', JSON.stringify(userData));
+            localStorage.removeItem('rhm_user');
+          }
+
+          window.location.href = data.redirect_url;
+        } else {
+          err.innerHTML = `<i data-lucide="alert-circle" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> ${data.message}`;
+          err.style.display = 'block';
+          lucide.createIcons();
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      } catch (error) {
+        err.innerHTML = `<i data-lucide="wifi-off" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;"></i> Error de conexión con el servidor.`;
         err.style.display = 'block';
+        lucide.createIcons();
+        btn.innerText = originalText;
+        btn.disabled = false;
       }
     });
 
     function togglePass() {
       const inp = document.getElementById('password');
-      inp.type = inp.type === 'password' ? 'text' : 'password';
+      const icon = document.getElementById('eyeIcon');
+
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        inp.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
     }
-    function useDemo(email, pass) {
-      document.getElementById('email').value = email;
-      document.getElementById('password').value = pass;
-      document.getElementById('loginError').style.display = 'none';
+
+    function abrirModal(e) {
+      e.preventDefault();
+      document.getElementById('recoveryModal').classList.add('show');
+      lucide.createIcons(); // Recarga los íconos por si acaso
+    }
+
+    function cerrarModal() {
+      document.getElementById('recoveryModal').classList.remove('show');
     }
   </script>
 </body>
+
 </html>
