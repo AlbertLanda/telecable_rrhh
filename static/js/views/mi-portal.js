@@ -266,7 +266,7 @@ function initMisBoletas() { }
 
 window.openBoletaModal = function (periodo) {
   const emp = myEmp();
-  const company = MOCK.empresas.find(c => c.id === emp.companyId) || MOCK.empresas[0];
+  const company = MOCK.empresas[0];
   const p = calcPlanilla(emp);
   // Find the document for this period to check signature status
   const doc = MOCK.documentos.find(d => d.empId === emp.id && d.tipo === 'Boleta' && d.nombre.includes(periodo.split(' ')[0]));

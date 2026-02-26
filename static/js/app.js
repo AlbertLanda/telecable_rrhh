@@ -116,11 +116,11 @@ function init() {
     lucide.createIcons();
 }
 
-function switchSede(id) {
-    currentSedeId = parseInt(id);
-    localStorage.setItem('rhm_sede_id', id);
+function switchCompany(id) {
+    currentCompanyId = parseInt(id);
+    localStorage.setItem('rhm_company_id', id);
     const hash = window.location.hash.replace('#', '');
-    navigate(hash); // Recarga la vista actual con la nueva sede
+    navigate(hash);
 }
 
 function navigate(viewName) {
@@ -250,7 +250,7 @@ window.addEventListener('click', function(e) {
 
 // Función para cambiar de Sede
 function switchSede(id) {
-    currentCompanyId = parseInt(id);
+    currentSedeId = parseInt(id);
     localStorage.setItem('rhm_sede_id', id);
     const hash = window.location.hash.replace('#', '');
     navigate(hash);

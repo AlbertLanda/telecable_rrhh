@@ -63,7 +63,7 @@ function filterEmpleados() {
   const est = document.getElementById('empEstado')?.value || '';
 
   let list = MOCK.empleados.filter(e => {
-    const matchC = e.companyId === currentCompanyId;
+    const matchC = e.sedeId === currentSedeId;
     const matchQ = !q || empFullName(e).toLowerCase().includes(q) || e.codigo.toLowerCase().includes(q) || e.dni.includes(q) || e.email.toLowerCase().includes(q);
     const matchD = !dept || e.deptId == dept;
     const matchE = !est || e.estado === est;

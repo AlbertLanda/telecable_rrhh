@@ -3,7 +3,7 @@
 // ============================================================
 
 function renderDocumentos() {
-  const emps = MOCK.empleados.filter(e => e.companyId === currentCompanyId);
+  const emps = MOCK.empleados.filter(e => e.sedeId === currentSedeId);
   const empIds = emps.map(e => e.id);
   const empOptions = emps.map(e =>
     `<option value="${e.id}">${empFullName(e)}</option>`
