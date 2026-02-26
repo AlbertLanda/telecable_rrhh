@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from django.http import JsonResponse
 from django.contrib.auth import authenticate, login as django_login
 from django.shortcuts import render
+from django.utils import timezone
 
 # Importamos las tablas reales
 from .models import Empleado, Departamento, Puesto, Sede, Empresa, Documento
@@ -113,26 +114,24 @@ def api_login(request):
             if user is not None:
                 django_login(request, user) 
                 
-                # ----------------------------------------------------
-                # MAGIA DE ROLES: Buscamos qué perfil tiene este usuario
-                # ----------------------------------------------------
-                rol_asignado = 'Empleado' # Rol por defecto
+                rol_asignado = 'Empleado'
+                emp_id = None # <--- Creamos esta variable vacía
                 
                 if hasattr(user, 'perfil'):
-                    # Si le creamos un perfil en el admin, usamos ese
                     rol_asignado = user.perfil.rol
+                    if user.perfil.empleado: # <--- Si el perfil está enlazado a un empleado...
+                        emp_id = user.perfil.empleado.id # <--- ¡Sacamos su ID exacto!
                 elif user.is_superuser:
-                    # Si es el superusuario original que creaste en consola
                     rol_asignado = 'Admin'
 
-                # Tomamos su nombre real o su username
                 nombre_mostrar = user.first_name if user.first_name else user.username
 
                 return JsonResponse({
                     'success': True, 
                     'redirect_url': '/app/',
                     'role': rol_asignado,
-                    'name': nombre_mostrar
+                    'name': nombre_mostrar,
+                    'emp_id': emp_id # <--- Lo mandamos al navegador
                 })
             else:
                 return JsonResponse({'success': False, 'message': 'Usuario o contraseña incorrectos.'})
@@ -199,6 +198,26 @@ def api_subir_documento(request):
                 tamaño_kb=round(archivo.size / 1024) # Calculamos el peso real en KB
             )
 
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+            
+    return JsonResponse({'success': False, 'message': 'Método no permitido'})
+
+def api_firmar_documento(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            doc_id = data.get('doc_id')
+            
+            # Buscamos el documento en la base de datos
+            documento = Documento.objects.get(id=doc_id)
+            
+            # Aplicamos la "Firma Digital"
+            documento.firmado = True
+            documento.fecha_firma = timezone.now()
+            documento.save()
+            
             return JsonResponse({'success': True})
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})

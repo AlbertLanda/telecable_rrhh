@@ -36,12 +36,17 @@ function init() {
     isEmployee = currentUser.role === 'Empleado';
     
     // 🔥 MAGIA: Autodetectar al empleado por su Email o DNI en la Base de Datos Real
-    const empReal = MOCK.empleados.find(e => 
-        e.email.toLowerCase() === currentUser.email.toLowerCase() || 
-        e.dni === currentUser.email || 
-        e.codigo === currentUser.email
-    );
-    myEmpId = empReal ? empReal.id : null;
+    if (currentUser.empId) {
+        myEmpId = currentUser.empId;
+    } else {
+        // Fallback por si inicia sesión con un correo antiguo
+        const empReal = MOCK.empleados.find(e => 
+            e.email.toLowerCase() === currentUser.email.toLowerCase() || 
+            e.dni === currentUser.email || 
+            e.codigo === currentUser.email
+        );
+        myEmpId = empReal ? empReal.id : null;
+    }
     
     VIEWS = isEmployee ? VIEWS_EMP : VIEWS_FULL;
 
@@ -177,40 +182,46 @@ function showSignModal(docId) {
 
     const html = `
         <div class="modal-overlay">
-            <div class="modal-content" style="max-width:450px animation: modalSlideUp 0.3s ease;">
+            <div class="modal" style="max-width: 480px;">
                 <div class="modal-header">
-                    <h3>Firma Digital de Boleta</h3>
-                    <button class="close-btn" onclick="closeModal()"><i data-lucide="x"></i></button>
+                    <h3>Firma Electrónica de Documento</h3>
+                    <button class="modal-close" onclick="closeModal()"><i data-lucide="x" style="width:14px;height:14px"></i></button>
                 </div>
-                <div class="modal-body">
-                    <div style="background:var(--primary-50); padding:12px; border-radius:var(--r-sm); margin-bottom:16px;">
-                        <p style="font-size:0.85rem; color:var(--primary-dark);">Estás a punto de firmar digitalmente el documento: <strong>${doc.nombre}</strong></p>
+                <div class="modal-body" style="padding-top: 15px;">
+                    
+                    <div style="background:var(--info-50); color:var(--info); padding:14px 18px; border-radius:var(--r-sm); margin-bottom:24px; font-size:0.85rem; line-height:1.5; border: 1px solid var(--info-100);">
+                        <i data-lucide="info" style="width:18px;height:18px; display:inline; vertical-align:middle; margin-right:6px;"></i>
+                        Estás a punto de firmar digitalmente el documento: <br>
+                        <strong style="color:var(--info-dark); display:block; margin-top:6px; font-size: 0.95rem;">📄 ${doc.nombre}</strong>
                     </div>
                     
-                    <div class="form-group">
-                        <label class="form-label">Nombre Completo (para firma)</label>
+                    <div class="field" style="margin-bottom: 18px;">
+                        <label>Titular de la Firma</label>
                         <div class="input-wrap">
                             <i data-lucide="user" class="input-icon-l" style="width:16px;height:16px"></i>
-                            <input type="text" id="sign_name" value="${empFullName(emp)}" readonly>
+                            <input type="text" value="${empFullName(emp)}" readonly style="background:var(--gray-100); font-weight:700; color:var(--text-primary); padding-left: 38px; cursor: not-allowed;">
                         </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label class="form-label">DNI</label>
+                    <div class="field" style="margin-bottom: 24px;">
+                        <label>Documento de Identidad (DNI)</label>
                         <div class="input-wrap">
                             <i data-lucide="credit-card" class="input-icon-l" style="width:16px;height:16px"></i>
-                            <input type="text" id="sign_dni" value="${emp.dni}" readonly>
+                            <input type="text" value="${emp.dni}" readonly style="background:var(--gray-100); font-weight:700; color:var(--text-primary); padding-left: 38px; cursor: not-allowed;">
                         </div>
                     </div>
                     
-                    <div style="margin-top:20px; font-size:0.75rem; color:var(--text-secondary); display:flex; gap:8px;">
-                        <i data-lucide="info" style="width:14px;height:14px;flex-shrink:0"></i>
-                        <p>Al hacer clic en "Confirmar Firma", declaras que los datos son correctos y aceptas el contenido del documento.</p>
+                    <div style="font-size:0.78rem; color:var(--text-secondary); display:flex; gap:12px; line-height:1.5; background:var(--gray-50); padding:16px; border-radius:var(--r-sm); border:1px dashed var(--gray-300);">
+                        <i data-lucide="shield-check" style="width:28px;height:28px;flex-shrink:0; color:var(--success)"></i>
+                        <p>Al hacer clic en <strong>"Confirmar Firma"</strong>, declaras que los datos son correctos, aceptas el contenido del documento y generas una validación electrónica vinculante a tu cuenta corporativa.</p>
                     </div>
+
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-gray" onclick="closeModal()">Cancelar</button>
-                    <button class="btn btn-primary" onclick="confirmSignature(${docId})">Confirmar Firma</button>
+                    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="confirmSignature(${docId})">
+                        <i data-lucide="pen-tool" style="width:14px;height:14px"></i> Confirmar Firma
+                    </button>
                 </div>
             </div>
         </div>
@@ -218,26 +229,57 @@ function showSignModal(docId) {
     openModal(html);
 }
 
-function confirmSignature(docId) {
-    const doc = MOCK.documentos.find(d => d.id === docId);
-    const emp = getEmp(doc.empId);
+window.confirmSignature = async function(docId) {
+    // Buscamos el botón dentro del modal para bloquearlo
+    const btn = document.querySelector('.modal-footer .btn-primary');
+    if (btn.disabled) return; // Escudo anti-doble clic
 
-    // Update mock data state
-    doc.signed = true;
-    doc.signedBy = empFullName(emp);
-    doc.signedDni = emp.dni;
-    const now = new Date();
-    doc.signedAt = now.toISOString().split('T')[0] + ' ' + now.toTimeString().split(' ')[0].substring(0, 5);
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = `<i data-lucide="loader-2" class="lucide-spin" style="width:14px;height:14px"></i> Procesando Firma...`;
+    btn.disabled = true;
+    lucide.createIcons();
 
-    closeModal();
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 
-    // Refresh current view
-    const hash = window.location.hash.replace('#', '');
-    navigate(hash);
+    try {
+        const response = await fetch('/api/documentos/firmar/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ doc_id: docId })
+        });
 
-    // Potential notification
-    alert('¡Boleta firmada con éxito!');
-}
+        const result = await response.json();
+        
+        if (result.success) {
+            closeModal(); // Cerramos el modal de la firma
+            
+            // ABRIMOS EL MODAL DE ÉXITO ESTILO ENTERPRISE 😎
+            setTimeout(() => {
+                openModal(`
+                  <div class="modal-overlay">
+                    <div class="modal" style="max-width: 380px; text-align: center; padding: 40px 20px;">
+                        <div style="width: 70px; height: 70px; background: var(--success-50); color: var(--success); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                            <i data-lucide="pen-tool" style="width: 36px; height: 36px;"></i>
+                        </div>
+                        <h3 style="font-size: 1.4rem; margin-bottom: 10px; font-weight: 800;">¡Documento Firmado!</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 25px; line-height: 1.5;">Tu firma digital tiene validez legal y ha sido registrada en el sistema con tu DNI y fecha de validación.</p>
+                        <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 14px;" onclick="window.location.reload();">Entendido</button>
+                    </div>
+                  </div>
+                `);
+            }, 100);
+            
+        } else {
+            alert("❌ Error: " + result.message);
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
+    } catch (e) {
+        alert("❌ Error de conexión al servidor.");
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+    }
+};
 
 // Funciones para Menús Desplegables
 function toggleDropdown(id) {
