@@ -1,0 +1,212 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RHM – Panel de Control</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</head>
+
+<body>
+    {% csrf_token %}
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="s-logo"><i data-lucide="building-2" style="width:20px; color:white;"></i></div>
+                <div class="s-brand">Telecable <small>Recursos Humanos</small></div>
+            </div>
+            <nav class="sidebar-nav" id="sidebarNav">
+                <div id="navFull">
+                    <div class="nav-section-label">Principal</div>
+                    <div class="nav-item active" data-view="dashboard">
+                        <i data-lucide="layout-dashboard"></i><span>Dashboard</span>
+                    </div>
+                    <div class="nav-section-label">Gestión</div>
+                    <div class="nav-item" data-view="empleados">
+                        <i data-lucide="users"></i><span>Empleados</span>
+                    </div>
+                    <div class="nav-item" data-view="departamentos">
+                        <i data-lucide="building-2"></i><span>Departamentos</span>
+                    </div>
+                    <div class="nav-section-label">Operaciones</div>
+                    <div class="nav-item" data-view="asistencia">
+                        <i data-lucide="clock"></i><span>Asistencia</span>
+                    </div>
+                    <div class="nav-item" data-view="planilla">
+                        <i data-lucide="banknote"></i><span>Planilla</span>
+                    </div>
+                    <div class="nav-item" data-view="vacaciones">
+                        <i data-lucide="umbrella"></i><span>Vacaciones</span>
+                        <span class="nav-badge" id="vacBadge">3</span>
+                    </div>
+                    <div class="nav-item" data-view="documentos">
+                        <i data-lucide="file-text"></i><span>Documentos</span>
+                    </div>
+                    <div class="nav-section-label">Análisis</div>
+                    <div class="nav-item" data-view="reportes">
+                        <i data-lucide="bar-chart-2"></i><span>Reportes</span>
+                    </div>
+                    <div class="nav-section-label">Sistema</div>
+                    <div class="nav-item" data-view="configuracion">
+                        <i data-lucide="settings"></i><span>Configuración</span>
+                    </div>
+                </div>
+
+                <div id="navEmp" style="display:none">
+                    <div class="nav-section-label">Mi Espacio</div>
+                    <div class="nav-item active" data-view="mi-portal">
+                        <i data-lucide="house"></i><span>Mi Portal</span>
+                    </div>
+                    <div class="nav-item" data-view="mi-asistencia">
+                        <i data-lucide="clock"></i><span>Mi Asistencia</span>
+                    </div>
+                    <div class="nav-item" data-view="mis-boletas">
+                        <i data-lucide="receipt"></i><span>Mis Boletas</span>
+                    </div>
+                    <div class="nav-item" data-view="mis-documentos">
+                        <i data-lucide="file-text"></i><span>Mis Documentos</span>
+                    </div>
+                    <div class="nav-item" data-view="mis-vacaciones">
+                        <i data-lucide="umbrella"></i><span>Mis Vacaciones</span>
+                    </div>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" onclick="logout()">
+                    <div class="s-avatar" id="sidebarInitials">CQ</div>
+                    <div class="s-user-info">
+                        <div class="s-username" id="sidebarName">Carlos Quispe</div>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+                        <div class="s-role" id="sidebarRole">Administrador</div>
+                    </div>
+                    <i data-lucide="log-out" class="s-logout" style="width:15px;height:15px"></i>
+                </div>
+            </div>
+        </aside>
+
+        <div class="main-wrap">
+            <header class="app-header">
+                <div class="header-title">
+                    <div class="header-page-name" id="headerTitle">Dashboard</div>
+                    <div class="header-breadcrumb" id="headerBreadcrumb">RHM / Dashboard</div>
+                </div>
+                
+                <div class="header-actions">
+                    <div class="company-switcher" id="sedeSwitcher">
+                        <i data-lucide="map-pin" style="width:16px;height:16px;color:var(--primary);"></i>
+                        <select id="currentSede" onchange="switchSede(this.value)"></select>
+                    </div>
+
+                    <div style="position: relative;">
+                        <button class="hdr-btn" title="Notificaciones" onclick="toggleDropdown('notifDropdown')">
+                            <i data-lucide="bell" style="width:18px;height:18px"></i>
+                            <span class="notif-dot" id="notifDot" style="display: none;"></span>
+                        </button>
+                        <div class="dropdown-menu" id="notifDropdown">
+                            <div class="dropdown-header">Notificaciones Recientes</div>
+                            <div class="dropdown-body" id="notifList"></div>
+                        </div>
+                    </div>
+
+                    <div style="position: relative;">
+                        <button class="hdr-btn" title="Soporte TI" onclick="toggleDropdown('helpDropdown')">
+                            <i data-lucide="help-circle" style="width:18px;height:18px"></i>
+                        </button>
+                        <div class="dropdown-menu" id="helpDropdown" style="width: 260px;">
+                            <div class="dropdown-header"><i data-lucide="life-buoy" style="width:14px; display:inline; vertical-align:middle;"></i> Mesa de Ayuda TI</div>
+                            <div class="dropdown-body" style="padding: 16px;">
+                                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">¿Tienes problemas con el sistema? Comunícate con Soporte Interno:</p>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 0.85rem; font-weight: 600;">
+                                    <div style="background:var(--primary-50); padding:6px; border-radius:6px; color:var(--primary);"><i data-lucide="phone" style="width:16px;height:16px;"></i></div>
+                                    922 181 550
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600;">
+                                    <div style="background:var(--primary-50); padding:6px; border-radius:6px; color:var(--primary);"><i data-lucide="mail" style="width:16px;height:16px;"></i></div>
+                                    area_ti@telecable.pe
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="header-user">
+                        <div class="h-avatar" id="headerInitials">CQ</div>
+                        <div>
+                            <div class="h-user-name" id="headerName">Carlos Quispe</div>
+                            <div class="h-user-role" id="headerRole">Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <div class="view-content" id="viewContent">
+                </div>
+        </div>
+    </div>
+
+   <div id="modalContainer"></div>
+
+    <script src="{% static 'js/mock-data.js' %}"></script>
+    
+    <script>
+        // 1. Traemos los datos reales de tu PostgreSQL
+        const realEmpresas = JSON.parse('{{ empresas_json|escapejs }}' || '[]');
+        const realSedes = JSON.parse('{{ sedes_json|escapejs }}' || '[]');
+        const realDepartamentos = JSON.parse('{{ deptos_json|escapejs }}' || '[]');
+        const realPuestos = JSON.parse('{{ puestos_json|escapejs }}' || '[]');
+        const realEmpleados = JSON.parse('{{ emps_json|escapejs }}' || '[]');
+        const realAsistencias = JSON.parse('{{ asis_json|escapejs }}' || '[]');
+        const realVacaciones = JSON.parse('{{ vac_json|escapejs }}' || '[]');
+        const realDocumentos = JSON.parse('{{ docs_json|escapejs }}' || '[]');
+        const realWeeklyAtt = JSON.parse('{{ weekly_json|escapejs }}' || '[]');
+        
+        // 2. BLINDAJE: Si tu BD está vacía, creamos datos de emergencia para que JS no explote
+        if (realDepartamentos.length === 0) {
+            realDepartamentos.push({ id: 9999, nombre: "Área General", color: "#3b82f6", desc: "Creado por sistema" });
+        }
+        
+        if (realSedes.length === 0) {
+            realSedes.push({ id: 9999, nombre: "Sede Principal" });
+        }
+
+        // 3. Revisamos que ningún empleado quede "volando" sin departamento
+        realEmpleados.forEach(emp => {
+            const id_buscar = emp.deptId || emp.departamento_id;
+            const existeDept = realDepartamentos.find(d => String(d.id) === String(id_buscar));
+            
+            // Si el empleado tiene un departamento borrado o no existe, lo metemos al Área General
+            if (!existeDept) {
+                emp.deptId = realDepartamentos[0].id;
+            }
+        });
+
+        // 4. Inyectamos los datos limpios y seguros a tu sistema
+        MOCK.empresas = realEmpresas; 
+        MOCK.sedes = realSedes;
+        MOCK.departamentos = realDepartamentos;
+        MOCK.puestos = realPuestos;
+        MOCK.empleados = realEmpleados;
+        MOCK.asistencias = realAsistencias;
+        MOCK.vacaciones = realVacaciones;
+        MOCK.documentos = realDocumentos;
+        MOCK.weeklyAttendance = realWeeklyAtt;
+    </script>
+
+    <script src="{% static 'js/views/dashboard.js' %}?v=9999"></script>
+    <script src="{% static 'js/views/empleados.js' %}?v=9999"></script>
+    <script src="{% static 'js/views/departamentos.js' %}?v=9999"></script>
+    <script src="{% static 'js/views/asistencia.js' %}?v=9999"></script>
+    <script src="{% static 'js/views/vacaciones.js' %}?v=9999"></script>
+    <script src="{% static 'js/views/documentos.js' %}?v=777777"></script>
+    <script src="{% static 'js/views/reportes.js' %}?v=9999"></script>
+    <script src="{% static 'js/views/configuracion.js' %}?v=9999"></script>
+    <script src="{% static 'js/views/mi-portal.js' %}?v=9999"></script>
+    <script src="{% static 'js/views/mi-asistencia.js' %}?v=9999"></script>
+    <script src="{% static 'js/views/planilla.js' %}?v=5000"></script>
+    <script src="{% static 'js/views/mis-boletas.js' %}?v=5000"></script>
+    <script src="{% static 'js/views/mis-documentos.js' %}?v=5000"></script>
+    <script src="{% static 'js/app.js' %}?v=5000"></script>
+</body>
+</html>
