@@ -1,5 +1,5 @@
 // ============================================================
-// VIEW: Mis Vacaciones (Sincronizado con PostgreSQL)
+// VIEW: Mis Vacaciones (Sincronizado con PostgreSQL y Autocontenido)
 // Ruta: static/js/views/mis-vacaciones.js
 // ============================================================
 
@@ -16,8 +16,31 @@ async function cargarMisVacaciones() {
     }
 }
 
+// --- Helpers Locales ---
+const getMiPerfil = () => { 
+    const rawData = localStorage.getItem('currentUser');
+    let id = window.myEmpId; 
+    if (rawData) {
+        try {
+            const user = JSON.parse(rawData);
+            id = user.emp_id || id; 
+        } catch(e){}
+    }
+    const emps = window.realEmpleados || [];
+    return emps.find(e => String(e.id) === String(id)); 
+};
+
+const mv_fmtDate = (dateStr) => {
+    if (!dateStr || dateStr === '—') return '—';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return `${d.getUTCDate()} ${meses[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+};
+// -----------------------
+
 window.renderMisVacaciones = function() {
-    const emp = typeof window.myEmp === 'function' ? window.myEmp() : null;
+    const emp = typeof window.myEmp === 'function' ? window.myEmp() : getMiPerfil();
     if (!emp) return `<div style="padding:40px; text-align:center; color:#ef4444;">Error: Perfil no vinculado.</div>`;
 
     // 🔥 AUTO-ARRANQUE CON LOADER
@@ -56,7 +79,7 @@ window.renderMisVacaciones = function() {
                 <p style="color: #64748b; margin: 0;">Control de descansos remunerados y licencias</p>
             </div>
             <div class="view-header-actions">
-                <button class="btn btn-primary" onclick="abrirModalNuevaVacacion()" style="background: #4f46e5; border: none; box-shadow: 0 4px 6px rgba(79,70,229,0.2);">
+                <button class="btn btn-primary" onclick="window.abrirModalNuevaVacacion()" style="background: #4f46e5; border: none; box-shadow: 0 4px 6px rgba(79,70,229,0.2);">
                     <i data-lucide="plus" style="width:16px;height:16px;margin-right:6px;"></i> Nueva Solicitud
                 </button>
             </div>
@@ -78,7 +101,7 @@ function renderDashboardVacaciones(emp) {
     let diasUsados = 0;
     
     myVacs.forEach(v => {
-        // Solo restamos los días si la vacación fue aprobada o ya fue gozada
+        // Solo restamos los días si la vacación fue aprobada
         if (v.estado === 'Aprobado') {
             diasUsados += parseInt(v.dias || v.dias_totales || 0);
         }
@@ -86,7 +109,7 @@ function renderDashboardVacaciones(emp) {
     
     const diasPendientes = diasAnuales - diasUsados;
 
-    const rows = myVacs.map(v => {
+    const rows = myVacs.slice().reverse().map(v => {
         let badgeColor = 'badge-gray';
         if(v.estado === 'Aprobado') badgeColor = 'badge-green';
         if(v.estado === 'Pendiente') badgeColor = 'badge-amber';
@@ -94,8 +117,8 @@ function renderDashboardVacaciones(emp) {
 
         return `
         <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-            <td style="padding: 16px; font-weight: 600; color: #334155;">${typeof window.fmtDate === 'function' ? window.fmtDate(v.inicio || v.fecha_inicio) : (v.inicio || v.fecha_inicio)}</td>
-            <td style="padding: 16px; font-weight: 600; color: #334155;">${typeof window.fmtDate === 'function' ? window.fmtDate(v.fin || v.fecha_fin) : (v.fin || v.fecha_fin)}</td>
+            <td style="padding: 16px; font-weight: 600; color: #334155;">${mv_fmtDate(v.inicio || v.fecha_inicio)}</td>
+            <td style="padding: 16px; font-weight: 600; color: #334155;">${mv_fmtDate(v.fin || v.fecha_fin)}</td>
             <td style="padding: 16px;"><strong style="color: #4f46e5; background: #e0e7ff; padding: 4px 10px; border-radius: 6px;">${v.dias || v.dias_totales} días</strong></td>
             <td style="padding: 16px; color: #475569;">${v.motivo}</td>
             <td style="padding: 16px;"><span class="badge ${badgeColor} badge-dot" style="font-weight: 600;">${v.estado}</span></td>
@@ -158,23 +181,27 @@ function renderDashboardVacaciones(emp) {
 window.abrirModalNuevaVacacion = function() {
     if(typeof window.openModal !== 'function') return;
 
+    const hoyObj = new Date();
+    const offset = hoyObj.getTimezoneOffset() * 60000;
+    const hoyStr = (new Date(hoyObj - offset)).toISOString().split('T')[0];
+
     window.openModal(`
     <div class="modal-overlay" style="z-index: 9999;">
         <div class="modal" style="max-width: 500px; padding: 0; border-radius: 12px; background: white; overflow: hidden; animation: modalPop 0.3s ease-out;">
             <div style="padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
                 <h3 style="font-size: 1.2rem; font-weight: 800; color: #1e293b; margin: 0;">Solicitar Vacaciones</h3>
-                <button onclick="closeModal()" style="background:none; border:none; cursor:pointer; color:#64748b;"><i data-lucide="x" style="width:20px;height:20px"></i></button>
+                <button onclick="window.closeModal()" style="background:none; border:none; cursor:pointer; color:#64748b;"><i data-lucide="x" style="width:20px;height:20px"></i></button>
             </div>
             
             <div style="padding: 24px;">
                 <div style="margin-bottom: 16px;">
                     <label style="display:block; font-size:0.85rem; font-weight:700; color:#475569; margin-bottom:8px;">Fecha de Inicio *</label>
-                    <input type="date" id="vac-inicio" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" onchange="calcularDiasVacaciones()">
+                    <input type="date" id="vac-inicio" value="${hoyStr}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" onchange="window.calcularDiasVacaciones()">
                 </div>
                 
                 <div style="margin-bottom: 16px;">
                     <label style="display:block; font-size:0.85rem; font-weight:700; color:#475569; margin-bottom:8px;">Fecha de Fin *</label>
-                    <input type="date" id="vac-fin" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" onchange="calcularDiasVacaciones()">
+                    <input type="date" id="vac-fin" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;" onchange="window.calcularDiasVacaciones()">
                 </div>
 
                 <div style="margin-bottom: 16px;">
@@ -189,8 +216,8 @@ window.abrirModalNuevaVacacion = function() {
             </div>
 
             <div style="padding: 16px 24px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
-                <button class="btn btn-ghost" onclick="closeModal()" style="font-weight: 600; border: 1px solid #e2e8f0;">Cancelar</button>
-                <button class="btn btn-primary" id="btn-enviar-vac" onclick="enviarSolicitudVacaciones()" style="font-weight: 600; background: #10b981; border: none;">
+                <button class="btn btn-ghost" onclick="window.closeModal()" style="font-weight: 600; border: 1px solid #e2e8f0;">Cancelar</button>
+                <button class="btn btn-primary" id="btn-enviar-vac" onclick="window.enviarSolicitudVacaciones()" style="font-weight: 600; background: #10b981; border: none;">
                     <i data-lucide="send" style="width:16px; height:16px; margin-right:6px;"></i> Enviar Solicitud
                 </button>
             </div>
@@ -213,7 +240,6 @@ window.calcularDiasVacaciones = function() {
             inputDias.value = "Error en fechas";
             inputDias.style.color = "#ef4444";
         } else {
-            // Cálculo de diferencia en milisegundos y conversión a días (sumando 1 para que sea inclusivo)
             const diffTime = Math.abs(date2 - date1);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
             inputDias.value = diffDays;
@@ -223,7 +249,7 @@ window.calcularDiasVacaciones = function() {
 };
 
 window.enviarSolicitudVacaciones = async function() {
-    const emp = typeof window.myEmp === 'function' ? window.myEmp() : null;
+    const emp = typeof window.myEmp === 'function' ? window.myEmp() : getMiPerfil();
     if(!emp) return;
 
     const inicio = document.getElementById('vac-inicio').value;
@@ -232,7 +258,7 @@ window.enviarSolicitudVacaciones = async function() {
     const motivo = document.getElementById('vac-motivo').value;
 
     if(!inicio || !fin || !motivo || dias === "0" || dias === "Error en fechas") {
-        if(typeof window.showSystemToast === 'function') window.showSystemToast("Completa correctamente todos los campos.", "warning");
+        if(typeof window.showToast === 'function') window.showToast("Completa correctamente todos los campos.", "warning");
         else alert("Por favor, llena los campos correctamente.");
         return;
     }
@@ -245,7 +271,6 @@ window.enviarSolicitudVacaciones = async function() {
     try {
         const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
         
-        // Petición a tu URL real en Django: /api/vacaciones/crear/
         const response = await fetch('/api/vacaciones/crear/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
@@ -259,20 +284,19 @@ window.enviarSolicitudVacaciones = async function() {
         });
         
         if (response.ok) {
-            closeModal();
-            if(typeof window.showSystemToast === 'function') window.showSystemToast("¡Solicitud de vacaciones enviada con éxito!", "success");
+            window.closeModal();
+            if(typeof window.showToast === 'function') window.showToast("¡Solicitud enviada con éxito!", "success");
             
-            // Recargamos el módulo para ver la nueva solicitud en estado "Pendiente"
             setTimeout(() => {
                 dbMisVacaciones = []; // Vaciamos para forzar la recarga
                 if (typeof window.navigate === 'function') window.navigate('mis-vacaciones');
             }, 1000);
         } else {
-            if(typeof window.showSystemToast === 'function') window.showSystemToast("Error al enviar la solicitud al servidor.", "error");
-            btn.innerHTML = 'Enviar Solicitud'; btn.disabled = false;
+            if(typeof window.showToast === 'function') window.showToast("Error al enviar la solicitud.", "error");
+            btn.innerHTML = '<i data-lucide="send" style="width:16px; height:16px; margin-right:6px;"></i> Enviar Solicitud'; btn.disabled = false;
         }
     } catch(e) {
-        if(typeof window.showSystemToast === 'function') window.showSystemToast("Fallo de red conectando con el servidor.", "error");
-        btn.innerHTML = 'Enviar Solicitud'; btn.disabled = false;
+        if(typeof window.showToast === 'function') window.showToast("Fallo de red conectando con el servidor.", "error");
+        btn.innerHTML = '<i data-lucide="send" style="width:16px; height:16px; margin-right:6px;"></i> Enviar Solicitud'; btn.disabled = false;
     }
 };

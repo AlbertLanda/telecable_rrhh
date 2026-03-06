@@ -1,5 +1,5 @@
 // ============================================================
-// VIEW: Planilla Mensual (Conectado a PostgreSQL vía Django API)
+// VIEW: Planilla Mensual (Autocontenido - Sin dependencias externas)
 // Ruta: static/js/views/planilla.js
 // ============================================================
 
@@ -27,13 +27,15 @@ async function cargarDatosPlanilla() {
 
     } catch (error) {
         console.error("Error conectando a PostgreSQL:", error);
-        if(typeof window.showSystemToast === 'function') {
-            window.showSystemToast("Error al conectar con la base de datos.", "error");
+        if(typeof window.showToast === 'function') {
+            window.showToast("Error al conectar con la base de datos.", "error");
+        } else {
+            alert("Error al conectar con la base de datos.");
         }
     }
 }
 
-async function initPlanilla() {
+window.initPlanilla = async function() {
     const container = document.getElementById('planillaContainer');
     
     // Mostrar loader mientras trae datos de PostgreSQL
@@ -50,17 +52,12 @@ async function initPlanilla() {
 }
 
 window.renderPlanilla = function() {
-    // 🔥 AUTO-ARRANQUE
-    setTimeout(() => {
-        initPlanilla();
-    }, 50);
-
     const hoyObj = new Date();
     const anioActual = hoyObj.getFullYear();
     const mesActual = hoyObj.toLocaleDateString('es-ES', { month: 'long' });
     const periodoStr = `${mesActual.charAt(0).toUpperCase() + mesActual.slice(1)} ${anioActual}`;
 
-    // Dibujamos el "Esqueleto" de la vista. La tabla se llenará sola tras cargar la BD.
+    // Dibujamos el "Esqueleto" de la vista. La tabla se llenará sola tras cargar la BD usando initPlanilla (llamado desde app.js).
     return `
     <div style="animation: fadeIn 0.4s ease-out;">
         <div class="view-header" style="margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-end;">
@@ -69,9 +66,9 @@ window.renderPlanilla = function() {
                 <p style="color:#64748b; margin:0;">Cálculo de remuneraciones y emisión de boletas legales</p>
             </div>
             <div class="view-header-actions" style="display:flex; gap:10px;">
-                <button class="btn btn-ghost" onclick="exportarPlanillaExcel()"><i data-lucide="file-spreadsheet" style="width:15px;height:15px; color:#10b981;"></i> Excel</button>
-                <button class="btn btn-ghost" onclick="exportarPlanillaPDF()"><i data-lucide="download" style="width:15px;height:15px; color:#ef4444;"></i> PDF</button>
-                <button class="btn btn-primary" style="background:#4f46e5; border:none; box-shadow: 0 4px 6px rgba(79,70,229,0.3);" onclick="emitirBoletasMasivasBD('${periodoStr}')">
+                <button class="btn btn-ghost" onclick="window.exportarPlanillaExcel()"><i data-lucide="file-spreadsheet" style="width:15px;height:15px; color:#10b981;"></i> Excel</button>
+                <button class="btn btn-ghost" onclick="window.exportarPlanillaPDF()"><i data-lucide="download" style="width:15px;height:15px; color:#ef4444;"></i> PDF</button>
+                <button class="btn btn-primary" style="background:#4f46e5; border:none; box-shadow: 0 4px 6px rgba(79,70,229,0.3);" onclick="window.emitirBoletasMasivasBD('${periodoStr}')">
                     <i data-lucide="send" style="width:15px;height:15px; margin-right:6px;"></i> Emitir Boletas
                 </button>
             </div>
@@ -93,12 +90,15 @@ function renderTablaPlanilla() {
 
     let tBruto = 0, tDcto = 0, tEsSalud = 0, tNeto = 0;
     
-    // Filtro estricto: Solo empleados activos de la sede actual (Guiado por tu empleados.js)
+    // Obtenemos la sede actual desde app.js (o usamos la primera si no existe)
+    const currentSede = typeof window.currentSedeId !== 'undefined' ? window.currentSedeId : (window.realSedes && window.realSedes[0] ? window.realSedes[0].id : null);
+
+    // Filtro estricto: Solo empleados activos de la sede actual
     const empleadosActivos = planEmpleados.filter(e => {
         const est = String(e.estado || '').toLowerCase();
         const noEsCesado = est !== 'cesado' && est !== 'inactivo';
         const empSede = e.sede_id || e.sede;
-        const matchSede = !empSede || String(empSede) === String(window.currentSedeId);
+        const matchSede = !empSede || String(empSede) === String(currentSede);
         return noEsCesado && matchSede;
     });
 
@@ -124,13 +124,16 @@ function renderTablaPlanilla() {
 
             let nombreCompleto = `${e.nombres || ''} ${e.apellidos || ''}`.trim() || 'Sin Nombre';
             const iniciales = (e.nombres || 'X').charAt(0) + (e.apellidos || 'X').charAt(0);
-            const bgColor = e.avatar_color || '#e0e7ff';
+            
+            // Helper local de color
+            const getAvatarColor = (id) => { const c = ['av-indigo', 'av-blue', 'av-green', 'av-purple', 'av-amber', 'av-red']; return c[(id || 0) % c.length]; };
+            const bgColor = e.avatar_color || getAvatarColor(e.id);
 
             return `
             <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
               <td style="padding:12px 16px;">
                 <div class="td-user">
-                    <div class="td-avatar bg-indigo-100 text-indigo-700" style="background:${bgColor}; width:38px; height:38px; font-size:0.9rem;">${iniciales}</div>
+                    <div class="td-avatar ${bgColor.startsWith('av-') ? bgColor : ''}" style="${bgColor.startsWith('#') ? 'background:'+bgColor+'; color:#fff;' : ''} width:38px; height:38px; font-size:0.9rem;">${iniciales.toUpperCase()}</div>
                     <div>
                         <div class="td-name" style="font-weight:700; color:#1e293b;">${nombreCompleto}</div>
                         <div class="td-sub" style="font-size:0.8rem; color:#64748b;">${dept.nombre} | DNI: ${e.dni || '---'}</div>
@@ -145,7 +148,7 @@ function renderTablaPlanilla() {
               <td style="padding:16px; color:#eab308; font-weight:600;">S/ ${essalud.toFixed(2)}</td>
               <td style="padding:16px; color:#10b981; font-weight:800;">S/ ${neto.toFixed(2)}</td>
               <td style="padding:16px;" class="col-accion-print">
-                <button class="btn btn-ghost" style="padding:6px; color:#4f46e5; border:1px solid #e0e7ff; background:white; border-radius:6px;" onclick="imprimirBoletaIndividual('${e.id}')" title="Ver Boleta">
+                <button class="btn btn-ghost" style="padding:6px; color:#4f46e5; border:1px solid #e0e7ff; background:white; border-radius:6px;" onclick="window.imprimirBoletaIndividual('${e.id}')" title="Ver Boleta">
                   <i data-lucide="eye" style="width:16px;height:16px;"></i>
                 </button>
               </td>
@@ -237,14 +240,13 @@ window.emitirBoletasMasivasBD = function(periodo) {
                 Se registrarán las boletas de <strong>${periodo}</strong> en PostgreSQL para que los empleados puedan firmarlas legalmente desde su portal.
             </p>
             <div style="display: flex; gap: 12px;">
-                <button class="btn btn-ghost" style="flex: 1; border: 1px solid #e2e8f0; font-weight: 600;" onclick="closeModal()">Cancelar</button>
-                <button class="btn btn-primary" id="btn-emitir-bd" style="flex: 1; background: #4f46e5; border: none; font-weight:700;" onclick="procesarEmisionBD('${periodo}')">
+                <button class="btn btn-ghost" style="flex: 1; border: 1px solid #e2e8f0; font-weight: 600;" onclick="window.closeModal()">Cancelar</button>
+                <button class="btn btn-primary" id="btn-emitir-bd" style="flex: 1; background: #4f46e5; border: none; font-weight:700;" onclick="window.procesarEmisionBD('${periodo}')">
                     Confirmar Emisión
                 </button>
             </div>
         </div>
     </div>`);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
 };
 
 window.procesarEmisionBD = async function(periodoStr) {
@@ -256,7 +258,6 @@ window.procesarEmisionBD = async function(periodoStr) {
     try {
         const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
         
-        // PETICIÓN A TU BACKEND DJANGO
         const response = await fetch('/api/boletas/emitir/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
@@ -264,18 +265,19 @@ window.procesarEmisionBD = async function(periodoStr) {
         });
         
         if (response.ok) {
-            closeModal();
-            if(typeof window.showSystemToast === 'function') window.showSystemToast("Boletas emitidas en la Base de Datos.", "success");
+            window.closeModal();
+            if(typeof window.showToast === 'function') window.showToast("Boletas emitidas en la Base de Datos.", "success");
             else alert("Éxito. Boletas creadas.");
         } else {
             const errorData = await response.json().catch(() => ({}));
-            if(typeof window.showSystemToast === 'function') window.showSystemToast(errorData.error || 'La ruta /api/boletas/emitir/ falló.', "error");
+            if(typeof window.showToast === 'function') window.showToast(errorData.error || 'La ruta falló.', "error");
             else alert("Error del servidor.");
-            closeModal();
+            window.closeModal();
         }
     } catch(e) {
-        if(typeof window.showSystemToast === 'function') window.showSystemToast("Error de red conectando con Django.", "error");
-        closeModal();
+        if(typeof window.showToast === 'function') window.showToast("Error de red conectando con Django.", "error");
+        else alert("Error de red.");
+        window.closeModal();
     }
 };
 
@@ -370,13 +372,12 @@ window.imprimirBoletaIndividual = function(empId) {
             </div>
             
             <div class="modal-footer no-print-btn" style="background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 20px; display: flex; justify-content: flex-end; gap: 12px;">
-                <button class="btn btn-ghost" onclick="closeModal()" style="border: 1px solid #cbd5e1; font-weight: 600;">Cerrar</button>
-                <button class="btn btn-primary" style="background:#2563eb; border:none; font-weight: 600;" onclick="ejecutarImpresionLimpia()"><i data-lucide="printer" style="width:16px;height:16px;margin-right:6px;"></i> Imprimir Documento</button>
+                <button class="btn btn-ghost" onclick="window.closeModal()" style="border: 1px solid #cbd5e1; font-weight: 600;">Cerrar</button>
+                <button class="btn btn-primary" style="background:#2563eb; border:none; font-weight: 600;" onclick="window.ejecutarImpresionLimpia()"><i data-lucide="printer" style="width:16px;height:16px;margin-right:6px;"></i> Imprimir Documento</button>
             </div>
         </div>
     </div>
     `);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
 };
 
 window.ejecutarImpresionLimpia = function() {
@@ -397,16 +398,24 @@ window.exportarPlanillaPDF = function() {
 
 window.exportarPlanillaExcel = function() {
     if (typeof XLSX === 'undefined') {
-        if(typeof window.showSystemToast === 'function') window.showSystemToast("Librería Excel no cargada.", "error");
+        if(typeof window.showToast === 'function') window.showToast("Librería Excel no cargada.", "error");
+        else alert("Librería Excel no cargada.");
         return;
     }
+    
+    const currentSede = typeof window.currentSedeId !== 'undefined' ? window.currentSedeId : (window.realSedes && window.realSedes[0] ? window.realSedes[0].id : null);
+
     const empleadosActivos = planEmpleados.filter(e => {
         const est = String(e.estado || '').toLowerCase();
         const empSede = e.sede_id || e.sede;
-        return est !== 'cesado' && est !== 'inactivo' && (!empSede || String(empSede) === String(window.currentSedeId));
+        return est !== 'cesado' && est !== 'inactivo' && (!empSede || String(empSede) === String(currentSede));
     });
     
-    if(empleadosActivos.length === 0) return window.showSystemToast("No hay empleados para exportar en esta sede.", "warning");
+    if(empleadosActivos.length === 0) {
+        if(typeof window.showToast === 'function') window.showToast("No hay empleados para exportar en esta sede.", "warning");
+        else alert("No hay empleados para exportar en esta sede.");
+        return;
+    }
 
     const dataParaExcel = empleadosActivos.map(e => {
         const dId = e.deptId || e.departamento_id || e.departamento;
@@ -415,12 +424,16 @@ window.exportarPlanillaExcel = function() {
             "DNI": e.dni, 
             "Empleado": `${e.nombres || ''} ${e.apellidos || ''}`.trim(), 
             "Área": dept.nombre, 
-            "Sueldo": e.sueldo || e.sueldo_base 
+            "Sueldo Base": e.sueldo || e.sueldo_base,
+            "Sistema Pensión": e.afp_onp || e.afp || 'No aplica'
         };
     });
 
     const worksheet = XLSX.utils.json_to_sheet(dataParaExcel);
     const workbook = XLSX.utils.book_new();
+    
+    worksheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 18 }];
+    
     XLSX.utils.book_append_sheet(workbook, worksheet, "Planilla");
     XLSX.writeFile(workbook, `Planilla_Export.xlsx`);
 };

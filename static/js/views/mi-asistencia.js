@@ -1,5 +1,5 @@
 // ============================================================
-// VIEW: Mi Asistencia (Sincronizado con PostgreSQL)
+// VIEW: Mi Asistencia (Sincronizado con PostgreSQL y Autocontenido)
 // Ruta: static/js/views/mi-asistencia.js
 // ============================================================
 
@@ -18,8 +18,43 @@ async function cargarMisAsistencias() {
     }
 }
 
+// ─── HELPER LOCAL SEGURO: Obtener empleado logueado ──────
+const getMiPerfil = () => { 
+    const rawData = localStorage.getItem('currentUser');
+    let id = window.myEmpId; 
+    if (rawData) {
+        try {
+            const user = JSON.parse(rawData);
+            id = user.emp_id || id; 
+        } catch(e){}
+    }
+    const emps = window.realEmpleados || [];
+    return emps.find(e => String(e.id) === String(id)); 
+};
+
+// ─── HELPERS DE FORMATO ────────────────────────────────────
+const ma_fmtDate = (dateStr) => {
+    if (!dateStr || dateStr === '—') return '—';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return `${d.getUTCDate()} ${meses[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+};
+
+const ma_horasDiff = (entrada, salida) => {
+    if (!entrada || !salida || entrada === '—' || salida === '—') return '—';
+    try {
+        let [h1, m1] = entrada.split(':').map(Number);
+        let [h2, m2] = salida.split(':').map(Number);
+        let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+        if (diff <= 0) return '—';
+        return `${Math.floor(diff / 60)}h ${diff % 60}m`;
+    } catch(e) { return '—'; }
+};
+
 window.renderMiAsistencia = function() {
-    const emp = typeof window.myEmp === 'function' ? window.myEmp() : null;
+    // Intentar usar la función del Portal si existe, sino usar la de respaldo
+    const emp = typeof window.myEmp === 'function' ? window.myEmp() : getMiPerfil();
     
     if (!emp) return `<div style="padding:40px; text-align:center; color:#ef4444;">Error: No se pudo cargar el perfil del empleado.</div>`;
 
@@ -89,15 +124,8 @@ function renderTablaMiAsistencia(emp) {
         if (a.tipo === 'Falta') badgeColor = 'badge-red';
         if (a.tipo === 'Hora Extra') badgeColor = 'badge-blue';
 
-        let horasTrabajadas = '—';
-        if (typeof window.horasDiff === 'function') {
-            horasTrabajadas = window.horasDiff(a.entrada || a.hora_entrada, a.salida || a.hora_salida);
-        }
-
-        let fechaFormateada = a.fecha;
-        if (typeof window.fmtDate === 'function') {
-            fechaFormateada = window.fmtDate(a.fecha);
-        }
+        let horasTrabajadas = ma_horasDiff(a.entrada || a.hora_entrada, a.salida || a.hora_salida);
+        let fechaFormateada = ma_fmtDate(a.fecha);
 
         return `
         <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">

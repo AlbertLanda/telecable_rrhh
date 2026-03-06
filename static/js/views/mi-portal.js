@@ -1,9 +1,9 @@
 // ============================================================
-// VIEW: Mi Portal (Employee Self-Service)
-// Todos los módulos personales del empleado
+// VIEW: Mi Portal (Employee Self-Service) - 100% Independiente
+// Ruta: static/js/views/mi-portal.js
 // ============================================================
 
-// ─── Helper: Obtener empleado logueado de forma segura ──────
+// ─── HELPER LOCAL SEGURO: Obtener empleado logueado ──────
 window.myEmp = function() { 
     const rawData = localStorage.getItem('currentUser');
     let id = window.myEmpId; 
@@ -13,7 +13,67 @@ window.myEmp = function() {
             id = user.emp_id || id; 
         } catch(e){}
     }
-    return getEmp(id); 
+    const emps = window.realEmpleados || [];
+    return emps.find(e => String(e.id) === String(id)); 
+};
+
+// ─── HELPERS LOCALES INTERNOS ──────────────────────────────
+const mp_getDept = (id) => (window.realDepartamentos || []).find(d => String(d.id) === String(id)) || { nombre: 'General' };
+const mp_getPuesto = (id) => (window.realPuestos || []).find(p => String(p.id) === String(id)) || { nombre: 'Colaborador' };
+
+const mp_empFullName = (emp) => emp ? `${emp.nombres || ''} ${emp.apellidos || ''}`.trim() : 'Usuario';
+const mp_empInitials = (emp) => emp ? ((emp.nombres ? emp.nombres.charAt(0) : 'X') + (emp.apellidos ? emp.apellidos.charAt(0) : 'X')).toUpperCase() : 'XX';
+
+const mp_fmtSoles = (amount) => 'S/ ' + parseFloat(amount || 0).toFixed(2);
+
+const mp_fmtDate = (dateStr) => {
+    if (!dateStr || dateStr === '—') return '—';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return `${d.getUTCDate()} ${meses[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+};
+
+const mp_horasDiff = (entrada, salida) => {
+    if (!entrada || !salida || entrada === '—' || salida === '—') return '—';
+    try {
+        let [h1, m1] = entrada.split(':').map(Number);
+        let [h2, m2] = salida.split(':').map(Number);
+        let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+        if (diff <= 0) return '—';
+        return `${Math.floor(diff / 60)}h ${diff % 60}m`;
+    } catch(e) { return '—'; }
+};
+
+const mp_tipoColor = (tipo) => {
+    if (tipo === 'Asistencia') return 'badge-green';
+    if (tipo === 'Tardanza') return 'badge-amber';
+    if (tipo === 'Falta') return 'badge-red';
+    return 'badge-blue';
+};
+
+const mp_vacEstadoBadge = (estado) => {
+    if (estado === 'Aprobado') return 'badge-green';
+    if (estado === 'Pendiente') return 'badge-amber';
+    return 'badge-red';
+};
+
+const mp_calcPlanilla = (emp) => {
+    const base = parseFloat(emp.sueldo || emp.sueldo_base || 0);
+    const asigFam = (emp.nombres && String(emp.nombres).includes('Rocio')) ? 102.50 : 0.00;
+    const bruto = base + asigFam;
+    let pctDcto = String(emp.afp_onp || '').toUpperCase().includes('ONP') ? 0.13 : (String(emp.afp_onp || '').toUpperCase().includes('AFP') ? 0.1309 : 0);
+    const afpMonto = bruto * pctDcto;
+
+    return {
+        bruto: base,
+        asigFam: asigFam,
+        brutoTotal: bruto,
+        afpLabel: emp.afp || emp.afp_onp || 'Sin Sistema',
+        afpMonto: afpMonto,
+        essalud: bruto * 0.09,
+        neto: bruto - afpMonto
+    };
 };
 
 // ─── 1. MI PORTAL (Home) ────────────────────────────────────────
@@ -30,18 +90,20 @@ window.renderMiPortal = function() {
         </div>`;
     }
 
-    const dept = getDept(emp.deptId || emp.departamento_id);
-    const puesto = getPuesto(emp.puestoId || emp.puesto_id);
-    const p = (typeof calcPlanilla === 'function') ? calcPlanilla(emp) : { neto: emp.sueldo || emp.sueldo_base || 0, bruto: 0, asigFam: 0, brutoTotal: 0, afpLabel: 'AFP', afpMonto: 0, essalud: 0 };
-    const saldo = MOCK.saldoVacaciones || { diasAnuales: 30, diasUsados: 10, diasPendientes: 20 };
+    const dept = mp_getDept(emp.deptId || emp.departamento_id);
+    const puesto = mp_getPuesto(emp.puestoId || emp.puesto_id);
+    const p = mp_calcPlanilla(emp);
+    
+    // Todo: Implementar BD real para el saldo
+    const saldo = { diasAnuales: 30, diasUsados: 10, diasPendientes: 20 };
 
     // Mi asistencia (Mes actual)
-    const myAtt = (MOCK.asistencias || []).filter(a => String(a.empId || a.empleado_id) === String(emp.id));
+    const myAtt = (window.realAsistencias || []).filter(a => String(a.empId || a.empleado_id) === String(emp.id));
     const presentes = myAtt.filter(a => a.tipo !== 'Falta').length;
     const tardanzas = myAtt.filter(a => a.tipo === 'Tardanza').length;
 
-    // 🔥 FILTRO SUPREMO ARREGLADO: Mis docs excluyendo las boletas para que el contador sea exacto
-    const myDocs = (MOCK.documentos || []).filter(d => {
+    // Mis docs excluyendo boletas
+    const myDocs = (window.realDocumentos || []).filter(d => {
         const esDelEmpleado = String(d.empId || d.empleado_id) === String(emp.id);
         const tipoDoc = String(d.tipo || d.tipo_documento || '').toLowerCase();
         const nombreDoc = String(d.nombre || d.nombre_archivo || '').toLowerCase();
@@ -62,10 +124,10 @@ window.renderMiPortal = function() {
     <div style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 55%,#312e81 100%);border-radius:var(--r-lg);padding:28px 32px;margin-bottom:20px;position:relative;overflow:hidden;animation: fadeIn 0.4s ease-out;">
       <div style="position:absolute;width:400px;height:400px;background:radial-gradient(circle,rgba(99,102,241,.25) 0%,transparent 70%);top:-100px;right:-80px;pointer-events:none"></div>
       <div style="display:flex;align-items:center;gap:20px;position:relative;z-index:1">
-        <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800;color:white;flex-shrink:0;box-shadow:0 8px 24px rgba(99,102,241,.45)">${empInitials(emp)}</div>
+        <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800;color:white;flex-shrink:0;box-shadow:0 8px 24px rgba(99,102,241,.45)">${mp_empInitials(emp)}</div>
         <div style="flex:1">
-          <div style="font-size:1.5rem;font-weight:800;color:white;letter-spacing:-.4px; text-transform:uppercase;">${empFullName(emp)}</div>
-          <div style="color:rgba(255,255,255,.7);font-size:.9rem;margin-top:3px">${puesto?.nombre || 'Colaborador'} · ${dept?.nombre || 'General'}</div>
+          <div style="font-size:1.5rem;font-weight:800;color:white;letter-spacing:-.4px; text-transform:uppercase;">${mp_empFullName(emp)}</div>
+          <div style="color:rgba(255,255,255,.7);font-size:.9rem;margin-top:3px">${puesto.nombre} · ${dept.nombre}</div>
           <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap">
             <span style="background:rgba(99,102,241,.25);color:#a5b4fc;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:600">${emp.codigo || 'EMP-000'}</span>
             <span style="background:rgba(99,102,241,.25);color:#a5b4fc;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:600">${emp.contrato || emp.tipo_contrato || 'Indefinido'}</span>
@@ -73,7 +135,7 @@ window.renderMiPortal = function() {
           </div>
         </div>
         <div style="text-align:right;color:white">
-          <div style="font-size:1.8rem;font-weight:800;color:#6ee7b7">${fmtSoles(p.neto)}</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#6ee7b7">${mp_fmtSoles(p.neto)}</div>
           <div style="font-size:.78rem;color:rgba(255,255,255,.55)">Sueldo neto / mes</div>
           <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:4px">${years} año${years !== 1 ? 's' : ''} ${months} mes${months !== 1 ? 'es' : ''} de antigüedad</div>
         </div>
@@ -81,28 +143,28 @@ window.renderMiPortal = function() {
       <div style="display:flex;gap:32px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);position:relative;z-index:1">
         <div><div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:2px">Email</div><div style="font-size:.83rem;color:rgba(255,255,255,.8)">${emp.email || '—'}</div></div>
         <div><div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:2px">Teléfono</div><div style="font-size:.83rem;color:rgba(255,255,255,.8)">${emp.telefono || emp.tel || '—'}</div></div>
-        <div><div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:2px">Ingreso</div><div style="font-size:.83rem;color:rgba(255,255,255,.8)">${fmtDate(ingresoStr)}</div></div>
+        <div><div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:2px">Ingreso</div><div style="font-size:.83rem;color:rgba(255,255,255,.8)">${mp_fmtDate(ingresoStr)}</div></div>
         <div><div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:2px">DNI</div><div style="font-size:.83rem;color:rgba(255,255,255,.8)">${emp.dni || '—'}</div></div>
         <div><div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:2px">Sistema Pensión</div><div style="font-size:.83rem;color:rgba(255,255,255,.8)">${emp.afp || emp.afp_onp || '—'}</div></div>
       </div>
     </div>
 
     <div class="stats-grid" style="margin-bottom:20px">
-      <div class="stat-card" style="cursor:pointer" onclick="navigate('mi-asistencia')">
+      <div class="stat-card" style="cursor:pointer" onclick="window.navigate('mi-asistencia')">
         <div class="stat-icon green"><i data-lucide="check-circle-2" style="width:22px;height:22px"></i></div>
         <div><div class="stat-number">${presentes}</div><div class="stat-label">Asistencias (Mes)</div><div class="stat-change pos">↑ Buen registro</div></div>
       </div>
-      <div class="stat-card" style="cursor:pointer" onclick="navigate('mi-asistencia')">
+      <div class="stat-card" style="cursor:pointer" onclick="window.navigate('mi-asistencia')">
         <div class="stat-icon amber"><i data-lucide="clock" style="width:22px;height:22px"></i></div>
         <div><div class="stat-number">${tardanzas}</div><div class="stat-label">Tardanzas (Mes)</div>
         ${tardanzas === 0 ? '<div class="stat-change pos">¡Sin tardanzas!</div>' : '<div class="stat-change neg">Revisar puntualidad</div>'}
         </div>
       </div>
-      <div class="stat-card" style="cursor:pointer" onclick="navigate('mis-vacaciones')">
+      <div class="stat-card" style="cursor:pointer" onclick="window.navigate('mis-vacaciones')">
         <div class="stat-icon blue"><i data-lucide="umbrella" style="width:22px;height:22px"></i></div>
         <div><div class="stat-number">${saldo.diasPendientes}</div><div class="stat-label">Días Vac. Disponibles</div><div class="stat-change pos">De ${saldo.diasAnuales} días anuales</div></div>
       </div>
-      <div class="stat-card" style="cursor:pointer" onclick="navigate('mis-documentos')">
+      <div class="stat-card" style="cursor:pointer" onclick="window.navigate('mis-documentos')">
         <div class="stat-icon indigo"><i data-lucide="file-text" style="width:22px;height:22px"></i></div>
         <div><div class="stat-number">${myDocs.length}</div><div class="stat-label">Mis Documentos</div><div class="stat-change pos">Disponibles para descarga</div></div>
       </div>
@@ -112,17 +174,17 @@ window.renderMiPortal = function() {
       <div class="card">
         <div class="card-header">
           <div><div class="card-title">Mi Asistencia Reciente</div><div class="card-subtitle">Últimos registros</div></div>
-          <button class="btn btn-ghost btn-sm" onclick="navigate('mi-asistencia')">Ver todo</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.navigate('mi-asistencia')">Ver todo</button>
         </div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Fecha</th><th>Entrada</th><th>Salida</th><th>Horas</th><th>Estado</th></tr></thead>
             <tbody>
               ${myAtt.slice(0, 5).map(a => `<tr>
-                <td style="font-size:.82rem">${fmtDate(a.fecha)}</td>
+                <td style="font-size:.82rem">${mp_fmtDate(a.fecha)}</td>
                 <td>${a.entrada || a.hora_entrada || '—'}</td><td>${a.salida || a.hora_salida || '—'}</td>
-                <td style="font-size:.82rem;color:var(--text-muted)">${horasDiff(a.entrada || a.hora_entrada, a.salida || a.hora_salida)}</td>
-                <td><span class="badge ${tipoColor(a.tipo)} badge-dot">${a.tipo}</span></td>
+                <td style="font-size:.82rem;color:var(--text-muted)">${mp_horasDiff(a.entrada || a.hora_entrada, a.salida || a.hora_salida)}</td>
+                <td><span class="badge ${mp_tipoColor(a.tipo)} badge-dot">${a.tipo}</span></td>
               </tr>`).join('')}
               ${myAtt.length === 0 ? '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted)">Sin registros</td></tr>' : ''}
             </tbody>
@@ -133,42 +195,42 @@ window.renderMiPortal = function() {
       <div class="card">
         <div class="card-header">
           <div><div class="card-title">Mis Últimos Documentos</div></div>
-          <button class="btn btn-ghost btn-sm" onclick="navigate('mis-documentos')">Ver todo</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.navigate('mis-documentos')">Ver todo</button>
         </div>
         <div class="card-body" style="padding:0">
           ${myDocs.slice(0, 4).map(doc => `
             <div class="info-row between" style="padding:11px 18px">
               <div style="display:flex;align-items:center;gap:10px">
                 <div class="stat-icon indigo" style="width:34px;height:34px;border-radius:8px;flex-shrink:0"><i data-lucide="file-text" style="width:15px;height:15px"></i></div>
-                <div><div class="td-name">${doc.nombre || doc.nombre_archivo}</div><div class="td-sub">${doc.tipo || doc.tipo_documento} · ${fmtDate(doc.fecha || doc.fecha_subida)}</div></div>
+                <div><div class="td-name">${doc.nombre || doc.nombre_archivo}</div><div class="td-sub">${doc.tipo || doc.tipo_documento} · ${mp_fmtDate(doc.fecha || doc.fecha_subida)}</div></div>
               </div>
               <a href="${doc.url || '#'}" target="_blank" class="btn btn-ghost btn-sm"><i data-lucide="download" style="width:13px;height:13px"></i></a>
             </div>`).join('')}
-          ${myDocs.length === 0 ? '<div class="empty-state"><p>Sin documentos aún</p></div>' : ''}
+          ${myDocs.length === 0 ? '<div class="empty-state" style="padding:40px 20px;"><p>Sin documentos aún</p></div>' : ''}
         </div>
       </div>
     </div>
 
     <div class="card" style="margin-top:16px">
       <div class="card-header">
-        <div><div class="card-title">Mi Última Boleta de Pago</div><div class="card-subtitle">Mes Actual · ${empFullName(emp)}</div></div>
-        <button class="btn btn-primary btn-sm" onclick="navigate('mis-boletas')">Ver todas las boletas</button>
+        <div><div class="card-title">Mi Última Boleta de Pago</div><div class="card-subtitle">Mes Actual · ${mp_empFullName(emp)}</div></div>
+        <button class="btn btn-primary btn-sm" onclick="window.navigate('mis-boletas')">Ver todas las boletas</button>
       </div>
       <div class="card-body">
         <div class="grid-2" style="gap:12px">
           <div style="background:var(--gray-50);border-radius:var(--r);padding:16px">
             <div class="section-label" style="margin-bottom:8px">Ingresos</div>
-            <div class="info-row between"><span>Sueldo Básico</span><span>${fmtSoles(p.bruto)}</span></div>
-            <div class="info-row between"><span>Asig. Familiar</span><span>${fmtSoles(p.asigFam)}</span></div>
-            <div class="info-row between fw-700"><span>Total Bruto</span><span>${fmtSoles(p.brutoTotal)}</span></div>
+            <div class="info-row between"><span>Sueldo Básico</span><span>${mp_fmtSoles(p.bruto)}</span></div>
+            <div class="info-row between"><span>Asig. Familiar</span><span>${mp_fmtSoles(p.asigFam)}</span></div>
+            <div class="info-row between fw-700"><span>Total Bruto</span><span>${mp_fmtSoles(p.brutoTotal)}</span></div>
           </div>
           <div style="background:var(--gray-50);border-radius:var(--r);padding:16px">
             <div class="section-label" style="margin-bottom:8px">Descuentos</div>
-            <div class="info-row between" style="color:var(--danger)"><span>${p.afpLabel}</span><span>- ${fmtSoles(p.afpMonto)}</span></div>
-            <div class="info-row between" style="color:var(--text-muted);font-size:.78rem"><span>EsSalud (empleador)</span><span>${fmtSoles(p.essalud)}</span></div>
+            <div class="info-row between" style="color:var(--danger)"><span>${p.afpLabel}</span><span>- ${mp_fmtSoles(p.afpMonto)}</span></div>
+            <div class="info-row between" style="color:var(--text-muted);font-size:.78rem"><span>EsSalud (empleador)</span><span>${mp_fmtSoles(p.essalud)}</span></div>
             <div style="background:var(--success-50);border-radius:var(--r-sm);padding:10px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center">
               <span style="font-weight:700;color:#065f46">Neto a Pagar</span>
-              <span style="font-weight:800;font-size:1.2rem;color:var(--success)">${fmtSoles(p.neto)}</span>
+              <span style="font-weight:800;font-size:1.2rem;color:var(--success)">${mp_fmtSoles(p.neto)}</span>
             </div>
           </div>
         </div>
@@ -181,7 +243,7 @@ window.renderMiAsistencia = function() {
     const emp = window.myEmp();
     if(!emp) return window.renderMiPortal(); 
 
-    const myAtt = (MOCK.asistencias || []).filter(a => String(a.empId || a.empleado_id) === String(emp.id));
+    const myAtt = (window.realAsistencias || []).filter(a => String(a.empId || a.empleado_id) === String(emp.id));
     const pres = myAtt.filter(a => a.tipo !== 'Falta').length;
     const tard = myAtt.filter(a => a.tipo === 'Tardanza').length;
     const fal = myAtt.filter(a => a.tipo === 'Falta').length;
@@ -189,21 +251,20 @@ window.renderMiAsistencia = function() {
 
     const rows = myAtt.slice().reverse().map(a => `
     <tr style="transition: all 0.2s ease;">
-      <td style="font-weight:600; color:#334155;">${fmtDate(a.fecha)}</td>
+      <td style="font-weight:600; color:#334155;">${mp_fmtDate(a.fecha)}</td>
       <td style="font-weight:700; color:#0f172a;">${a.entrada || a.hora_entrada || '—'}</td>
       <td style="color:#475569;">${a.salida || a.hora_salida || '—'}</td>
-      <td style="color:var(--text-muted)">${horasDiff(a.entrada || a.hora_entrada, a.salida || a.hora_salida)}</td>
-      <td><span class="badge ${tipoColor(a.tipo)} badge-dot" style="font-weight:600;">${a.tipo}</span></td>
+      <td style="color:var(--text-muted)">${mp_horasDiff(a.entrada || a.hora_entrada, a.salida || a.hora_salida)}</td>
+      <td><span class="badge ${mp_tipoColor(a.tipo)} badge-dot" style="font-weight:600;">${a.tipo}</span></td>
       <td style="font-size:.8rem;color:var(--text-muted)">${a.obs || a.observaciones || '—'}</td>
     </tr>`).join('');
 
     return `
     <div style="animation: fadeIn 0.4s ease-out;">
         <div class="view-header">
-            <div class="view-header-left"><h1>Mi Asistencia</h1><p>Historial personal de ${empFullName(emp)}</p></div>
+            <div class="view-header-left"><h1>Mi Asistencia</h1><p>Historial personal de ${mp_empFullName(emp)}</p></div>
             <div class="view-header-actions">
                 <button class="btn btn-ghost" onclick="window.print()"><i data-lucide="printer" style="width:15px;height:15px"></i> Imprimir</button>
-                <button class="btn btn-primary"><i data-lucide="download" style="width:15px;height:15px"></i> Exportar</button>
             </div>
         </div>
 
@@ -225,7 +286,6 @@ window.renderMiAsistencia = function() {
         <div class="card" style="border:none; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-radius:12px; overflow:hidden;">
             <div class="card-header" style="border-bottom: 1px solid #f1f5f9;">
                 <div><div class="card-title">Historial Detallado</div><div class="card-subtitle">${myAtt.length} registros</div></div>
-                <input type="month" class="filter-select" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
             </div>
             <div class="table-wrap">
                 <table style="width:100%; border-collapse: collapse;">
@@ -248,22 +308,22 @@ window.renderMiAsistencia = function() {
 
 // ─── 3. MIS BOLETAS ──────────────────────────────────────────
 const PERIODOS = [
+  { mes: 'Marzo', anio: 2026 },
   { mes: 'Febrero', anio: 2026 },
   { mes: 'Enero', anio: 2026 },
-  { mes: 'Diciembre', anio: 2025 },
-  { mes: 'Noviembre', anio: 2025 }
+  { mes: 'Diciembre', anio: 2025 }
 ];
 
 window.renderMisBoletas = function() {
   const emp = window.myEmp();
   if(!emp) return window.renderMiPortal();
-  const p = (typeof calcPlanilla === 'function') ? calcPlanilla(emp) : { neto: emp.sueldo || emp.sueldo_base || 0, brutoTotal: 0, afpLabel: 'AFP', afpMonto: 0 };
+  const p = mp_calcPlanilla(emp);
 
   const cards = PERIODOS.map((per, i) => {
     const factor = i === 0 ? 1 : (0.992 + Math.random() * 0.016);
     const neto = (p.neto * factor).toFixed(2);
     return `
-    <div class="card" style="cursor:pointer; transition:0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform=''" onclick="openBoletaModal('${per.mes} ${per.anio}')">
+    <div class="card" style="cursor:pointer; transition:0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform=''" onclick="window.openBoletaModal('${per.mes} ${per.anio}')">
       <div class="card-body" style="padding:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
           <div>
@@ -272,13 +332,13 @@ window.renderMisBoletas = function() {
           </div>
           ${i === 0 ? '<span class="badge badge-green">Actual</span>' : '<span class="badge badge-gray">Pagado</span>'}
         </div>
-        <div class="info-row between"><span style="color:var(--text-muted);font-size:.8rem">Sueldo Bruto</span><span style="font-size:.85rem">${fmtSoles(p.brutoTotal)}</span></div>
-        <div class="info-row between"><span style="color:var(--danger);font-size:.8rem">${p.afpLabel}</span><span style="color:var(--danger);font-size:.85rem">- ${fmtSoles(p.afpMonto)}</span></div>
+        <div class="info-row between"><span style="color:var(--text-muted);font-size:.8rem">Sueldo Bruto</span><span style="font-size:.85rem">${mp_fmtSoles(p.brutoTotal)}</span></div>
+        <div class="info-row between"><span style="color:var(--danger);font-size:.8rem">${p.afpLabel}</span><span style="color:var(--danger);font-size:.85rem">- ${mp_fmtSoles(p.afpMonto)}</span></div>
         <div style="background:var(--success-50);border-radius:var(--r-sm);padding:10px 12px;margin-top:10px;display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:.8rem;font-weight:600;color:#065f46">Neto</span>
-          <span style="font-weight:800;color:var(--success)">${fmtSoles(Number(neto))}</span>
+          <span style="font-weight:800;color:var(--success)">${mp_fmtSoles(Number(neto))}</span>
         </div>
-        <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px;justify-content:center" onclick="event.stopPropagation();openBoletaModal('${per.mes} ${per.anio}')">
+        <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px;justify-content:center" onclick="event.stopPropagation();window.openBoletaModal('${per.mes} ${per.anio}')">
           <i data-lucide="printer" style="width:13px;height:13px"></i> Ver / Imprimir
         </button>
       </div>
@@ -297,40 +357,43 @@ window.renderMisBoletas = function() {
 };
 
 window.openBoletaModal = function (periodo) {
+    if(typeof window.openModal !== 'function') return;
+
     const emp = window.myEmp();
-    const company = MOCK.empresas[0] || {nombre: 'Telecable S.A.C', ruc: '20123456789'};
-    const p = typeof calcPlanilla === 'function' ? calcPlanilla(emp) : { neto: emp.sueldo_base, brutoTotal: emp.sueldo_base, afpMonto: 0, afpLabel: 'Sin AFP', essalud: 0, bruto: emp.sueldo_base, asigFam: 0 };
+    const company = (window.realEmpresas && window.realEmpresas[0]) ? window.realEmpresas[0] : {nombre: 'Telecable S.A.C.', ruc: '20123456789'};
+    const p = mp_calcPlanilla(emp);
+    const puesto = mp_getPuesto(emp.puestoId || emp.puesto_id);
     
-    openModal(`
+    window.openModal(`
     <div class="modal-overlay" style="backdrop-filter: blur(4px);">
       <div class="modal">
-        <div class="modal-header">
-          <div><h3>Boleta de Pago</h3><div class="td-sub">${periodo} · ${empFullName(emp)}</div></div>
-          <button class="modal-close" onclick="closeModal()"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+        <div class="modal-header no-print">
+          <div><h3>Boleta de Pago</h3><div class="td-sub">${periodo} · ${mp_empFullName(emp)}</div></div>
+          <button class="modal-close" onclick="window.closeModal()"><i data-lucide="x" style="width:14px;height:14px"></i></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" id="boletaPrintArea">
           <div style="border:2px dashed var(--border);border-radius:var(--r-md);padding:22px; position:relative; background: #fafafa;">
             <div style="text-align:center;margin-bottom:16px">
-              <div style="font-weight:800;font-size:1.1rem">${company.nombre}</div>
+              <div style="font-weight:800;font-size:1.1rem">${company.nombre || company.razon_social}</div>
               <div style="font-size:.78rem;color:var(--text-muted)">RUC ${company.ruc}</div>
               <div style="font-weight:700;margin-top:8px;color:var(--primary)">BOLETA DE PAGO · ${periodo.toUpperCase()}</div>
             </div>
-            <div class="info-row between"><span class="info-row-label">Trabajador</span><span class="fw-700">${empFullName(emp)}</span></div>
-            <div class="info-row between"><span class="info-row-label">DNI</span><span>${emp.dni}</span></div>
-            <div class="info-row between"><span class="info-row-label">Cargo</span><span>${getPuesto(emp.puestoId || emp.puesto_id)?.nombre || 'General'}</span></div>
+            <div class="info-row between"><span class="info-row-label">Trabajador</span><span class="fw-700">${mp_empFullName(emp)}</span></div>
+            <div class="info-row between"><span class="info-row-label">DNI</span><span>${emp.dni || '---'}</span></div>
+            <div class="info-row between"><span class="info-row-label">Cargo</span><span>${puesto.nombre}</span></div>
             <div class="divider"></div>
             <div class="section-label">INGRESOS</div>
-            <div class="info-row between"><span>Sueldo Básico</span><span>${fmtSoles(p.bruto)}</span></div>
-            <div class="info-row between"><span>Asignación Familiar</span><span>${fmtSoles(p.asigFam)}</span></div>
-            <div class="info-row between fw-700"><span>TOTAL INGRESOS</span><span>${fmtSoles(p.brutoTotal)}</span></div>
+            <div class="info-row between"><span>Sueldo Básico</span><span>${mp_fmtSoles(p.bruto)}</span></div>
+            <div class="info-row between"><span>Asignación Familiar</span><span>${mp_fmtSoles(p.asigFam)}</span></div>
+            <div class="info-row between fw-700"><span>TOTAL INGRESOS</span><span>${mp_fmtSoles(p.brutoTotal)}</span></div>
             <div class="divider"></div>
             <div class="section-label">DESCUENTOS</div>
-            <div class="info-row between" style="color:var(--danger)"><span>${p.afpLabel}</span><span>- ${fmtSoles(p.afpMonto)}</span></div>
-            <div class="info-row between fw-700" style="color:var(--danger)"><span>TOTAL DESCUENTOS</span><span>- ${fmtSoles(p.afpMonto)}</span></div>
+            <div class="info-row between" style="color:var(--danger)"><span>${p.afpLabel}</span><span>- ${mp_fmtSoles(p.afpMonto)}</span></div>
+            <div class="info-row between fw-700" style="color:var(--danger)"><span>TOTAL DESCUENTOS</span><span>- ${mp_fmtSoles(p.afpMonto)}</span></div>
             <div class="divider"></div>
             <div style="background:var(--success-50);padding:12px 14px;border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center">
               <span style="font-weight:700;color:#065f46">NETO A PAGAR</span>
-              <span style="font-weight:800;font-size:1.3rem;color:var(--success)">${fmtSoles(p.neto)}</span>
+              <span style="font-weight:800;font-size:1.3rem;color:var(--success)">${mp_fmtSoles(p.neto)}</span>
             </div>
             
             <div style="margin-top:24px; padding:16px; border:1px solid var(--success-100); background:var(--success-50); border-radius:var(--r); display:flex; align-items:center; gap:12px;">
@@ -339,13 +402,13 @@ window.openBoletaModal = function (periodo) {
               </div>
               <div>
                   <div style="font-weight:700;color:#065f46;font-size:0.85rem">Firmado Digitalmente</div>
-                  <div style="font-size:0.75rem;color:#065f46;opacity:0.8">Por: ${empFullName(emp)}</div>
+                  <div style="font-size:0.75rem;color:#065f46;opacity:0.8">Por: ${mp_empFullName(emp)}</div>
               </div>
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-ghost" onclick="closeModal()">Cerrar</button>
+        <div class="modal-footer no-print">
+          <button class="btn btn-ghost" onclick="window.closeModal()">Cerrar</button>
           <button class="btn btn-primary" onclick="window.print()"><i data-lucide="printer" style="width:14px;height:14px"></i> Imprimir Oficial</button>
         </div>
       </div>
@@ -358,8 +421,7 @@ window.renderMisDocumentos = function() {
   const emp = window.myEmp();
   if(!emp) return window.renderMiPortal();
 
-  // 🔥 FILTRO SUPREMO ARREGLADO (También aquí por si acaso lo renderiza este archivo)
-  const myDocs = (MOCK.documentos || []).filter(d => {
+  const myDocs = (window.realDocumentos || []).filter(d => {
       const esDelEmpleado = String(d.empId || d.empleado_id) === String(emp.id);
       const tipoDoc = String(d.tipo || d.tipo_documento || '').toLowerCase();
       const nombreDoc = String(d.nombre || d.nombre_archivo || '').toLowerCase();
@@ -389,7 +451,7 @@ window.renderMisDocumentos = function() {
               </div>
               <div style="flex:1;min-width:0">
                 <div class="td-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${doc.nombre || doc.nombre_archivo}</div>
-                <div class="td-sub" style="margin-top:3px">${fmtDate(doc.fecha || doc.fecha_subida)}</div>
+                <div class="td-sub" style="margin-top:3px">${mp_fmtDate(doc.fecha || doc.fecha_subida)}</div>
                 <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:8px">
                     <span class="badge ${typeColors[doc.tipo || doc.tipo_documento] || 'badge-gray'}">${doc.tipo || doc.tipo_documento}</span>
                 </div>
@@ -411,17 +473,17 @@ window.renderMisVacaciones = function() {
   const emp = window.myEmp();
   if(!emp) return window.renderMiPortal();
 
-  const myVacs = (MOCK.vacaciones || []).filter(v => String(v.empId || v.empleado_id) === String(emp.id));
-  const saldo = MOCK.saldoVacaciones || { diasAnuales: 30, diasUsados: 10, diasPendientes: 20 };
+  const myVacs = (window.realVacaciones || []).filter(v => String(v.empId || v.empleado_id) === String(emp.id));
+  const saldo = { diasAnuales: 30, diasUsados: 10, diasPendientes: 20 };
 
   const rows = myVacs.map(v => `
     <tr>
-      <td style="font-weight:600;">${fmtDate(v.inicio || v.fecha_inicio)}</td>
-      <td style="font-weight:600;">${fmtDate(v.fin || v.fecha_fin)}</td>
+      <td style="font-weight:600;">${mp_fmtDate(v.inicio || v.fecha_inicio)}</td>
+      <td style="font-weight:600;">${mp_fmtDate(v.fin || v.fecha_fin)}</td>
       <td><strong style="color:var(--primary);">${v.dias || v.dias_totales} días</strong></td>
       <td style="color:#475569;">${v.motivo}</td>
-      <td><span class="badge ${vacEstadoBadge(v.estado)} badge-dot">${v.estado}</span></td>
-      <td style="font-size:0.85rem; color:#64748b;">${v.aprobadoPor || v.aprobado_por || '—'}</td>
+      <td><span class="badge ${mp_vacEstadoBadge(v.estado)} badge-dot">${v.estado}</span></td>
+      <td style="font-size:0.85rem; color:#64748b;">${v.aprobadoPor || v.aprobado_por || 'RRHH'}</td>
     </tr>`).join('');
 
   return `
@@ -429,7 +491,7 @@ window.renderMisVacaciones = function() {
       <div class="view-header">
         <div class="view-header-left"><h1>Mis Vacaciones</h1><p>Control de descansos remunerados</p></div>
         <div class="view-header-actions">
-          <button class="btn btn-primary" onclick="alert('Función de solicitud pronto disponible')"><i data-lucide="plus" style="width:15px;height:15px"></i> Nueva Solicitud</button>
+          <button class="btn btn-primary" onclick="if(typeof window.showToast === 'function') window.showToast('Función de solicitud pronto disponible', 'info'); else alert('Pronto disponible')"><i data-lucide="plus" style="width:15px;height:15px"></i> Nueva Solicitud</button>
         </div>
       </div>
       

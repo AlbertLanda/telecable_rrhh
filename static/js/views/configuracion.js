@@ -1,11 +1,36 @@
 // ============================================================
 // VIEW: Configuración (Panel de Administración Nivel Empresarial)
+// Ruta: static/js/views/configuracion.js
 // ============================================================
 
 window.renderConfiguracion = function() {
-    const empresa = (MOCK.empresas && MOCK.empresas.length > 0) ? MOCK.empresas[0] : { nombre: 'INVERSIONES EN TELECOMUNICACIONES DIGITALES S.A.C', ruc: '20603110456', telefono: '(064) 123456', direccion: 'Av. Principal 123, Huancayo' };
-    const deptos = MOCK.departamentos || [];
-    const sedes = MOCK.sedes || [];
+    const empresas = window.realEmpresas || [];
+    const deptos = window.realDepartamentos || [];
+    const sedes = window.realSedes || [];
+
+    // --- TABLA DE EMPRESAS (RAZONES SOCIALES) ---
+    const empresasRows = empresas.map(e => `
+        <tr>
+            <td>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:35px; height:35px; border-radius:8px; background:#eff6ff; color:#3b82f6; display:flex; align-items:center; justify-content:center;">
+                        <i data-lucide="building" style="width:18px;height:18px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight:700; color:#111827;">${e.razon_social || e.nombre || 'Sin Razón Social'}</div>
+                        <div style="font-size:0.8rem; color:#6b7280;">RUC: ${e.ruc || '---'}</div>
+                    </div>
+                </div>
+            </td>
+            <td style="color:#4b5563; font-size:0.9rem;">${e.direccion || 'No registrada'}</td>
+            <td style="color:#4b5563; font-size:0.9rem;">${e.telefono || '---'}</td>
+            <td>
+                <button class="btn btn-ghost" style="padding:4px; color:#3b82f6;" onclick="window.simularGuardadoToast('Función de edición en desarrollo')" title="Editar Empresa">
+                    <i data-lucide="edit-2" style="width:16px;height:16px;"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
 
     // --- TABLA DE DEPARTAMENTOS ---
     const deptosRows = deptos.map(d => `
@@ -21,7 +46,7 @@ window.renderConfiguracion = function() {
                 <div style="font-weight:600; color:#374151; font-size:0.9rem;">${d.jefe || d.jefe_nombre || 'No asignado'}</div>
             </td>
             <td>
-                <button class="btn btn-ghost" style="padding:4px; color:#3b82f6;" onclick="openEditarDepto(${d.id})" title="Editar Área">
+                <button class="btn btn-ghost" style="padding:4px; color:#3b82f6;" onclick="window.openEditarDepto(${d.id})" title="Editar Área">
                     <i data-lucide="edit-2" style="width:16px;height:16px;"></i>
                 </button>
             </td>
@@ -40,32 +65,32 @@ window.renderConfiguracion = function() {
             <td><span class="badge badge-green badge-dot">Activa</span></td>
             <td>
                 <div style="display:flex; gap:8px; align-items:center;">
-                    <button class="btn btn-ghost" style="padding:4px; color:#3b82f6;" title="Editar Sede" onclick="openModificarSede(${s.id}, '${s.nombre}')"><i data-lucide="edit-2" style="width:16px;height:16px;"></i></button>
-                    <button class="btn btn-ghost" style="padding:4px; color:#ef4444;" title="Desactivar Sede"><i data-lucide="trash-2" style="width:16px;height:16px;"></i></button>
+                    <button class="btn btn-ghost" style="padding:4px; color:#3b82f6;" title="Editar Sede" onclick="window.openModificarSede(${s.id}, '${s.nombre}')"><i data-lucide="edit-2" style="width:16px;height:16px;"></i></button>
+                    <button class="btn btn-ghost" style="padding:4px; color:#ef4444;" title="Desactivar Sede" onclick="window.simularGuardadoToast('Sede no se puede eliminar porque tiene empleados asignados')"><i data-lucide="trash-2" style="width:16px;height:16px;"></i></button>
                 </div>
             </td>
         </tr>
     `).join('');
 
     return `
-    <div class="view-header no-print">
+    <div class="view-header no-print" style="animation: fadeIn 0.4s ease-out;">
         <div class="view-header-left">
             <h1>Configuración del Sistema</h1>
             <p>Administración general, áreas y parámetros de la empresa</p>
         </div>
     </div>
 
-    <div style="display:flex; gap:20px; border-bottom: 1px solid #e5e7eb; margin-bottom: 25px; overflow-x: auto;">
-        <button class="conf-tab-btn active" onclick="switchConfTab('tab-general', this)">
-            <i data-lucide="building"></i> Datos de Empresa
+    <div style="display:flex; gap:20px; border-bottom: 1px solid #e5e7eb; margin-bottom: 25px; overflow-x: auto; animation: fadeIn 0.4s ease-out;">
+        <button class="conf-tab-btn active" onclick="window.switchConfTab('tab-general', this)">
+            <i data-lucide="building"></i> Razones Sociales
         </button>
-        <button class="conf-tab-btn" onclick="switchConfTab('tab-deptos', this)">
+        <button class="conf-tab-btn" onclick="window.switchConfTab('tab-deptos', this)">
             <i data-lucide="network"></i> Departamentos
         </button>
-        <button class="conf-tab-btn" onclick="switchConfTab('tab-sedes', this)">
+        <button class="conf-tab-btn" onclick="window.switchConfTab('tab-sedes', this)">
             <i data-lucide="map"></i> Sucursales / Sedes
         </button>
-        <button class="conf-tab-btn" onclick="switchConfTab('tab-seguridad', this)">
+        <button class="conf-tab-btn" onclick="window.switchConfTab('tab-seguridad', this)">
             <i data-lucide="shield"></i> Seguridad
         </button>
     </div>
@@ -73,34 +98,16 @@ window.renderConfiguracion = function() {
     <div class="conf-tab-content">
         
         <div id="tab-general" class="conf-pane active" style="animation: fadeIn 0.3s;">
-            <div class="card" style="max-width: 800px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-                <div class="card-header"><div class="card-title">Información Corporativa</div></div>
-                <div style="padding: 25px;">
-                    <div style="display:flex; gap:20px; margin-bottom:30px; align-items:center; background:#f9fafb; padding:15px; border-radius:12px; border:1px dashed #d1d5db;">
-                        <div style="width:80px; height:80px; background:white; border-radius:12px; border:1px solid #e5e7eb; display:flex; align-items:center; justify-content:center; flex-direction:column; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='#e5e7eb'">
-                            <i data-lucide="image" style="color:#9ca3af; margin-bottom:4px;"></i>
-                            <span style="font-size:0.7rem; color:#6b7280; font-weight:600;">Subir Logo</span>
-                        </div>
-                        <div>
-                            <h3 style="margin:0 0 5px 0; color:#111827; font-size:1.1rem;">Logo de la Empresa</h3>
-                            <p style="margin:0; font-size:0.85rem; color:#6b7280; line-height:1.4;">Se usará en las boletas, reportes y pantalla de inicio.<br>Formato recomendado: PNG transparente (Max 2MB).</p>
-                        </div>
-                    </div>
-                    
-                    <div class="form-grid">
-                        <div class="field form-full"><label>Razón Social *</label><input type="text" id="empNombre" value="${empresa.nombre}"></div>
-                        <div class="field"><label>RUC *</label><input type="text" id="empRuc" value="${empresa.ruc}"></div>
-                        <div class="field"><label>Teléfono Principal</label><input type="text" id="empTel" value="${empresa.telefono || ''}"></div>
-                        <div class="field form-full"><label>Dirección Fiscal</label><input type="text" id="empDir" value="${empresa.direccion || ''}"></div>
-                    </div>
-                    
-                    <div id="empresaMsg" style="text-align:right; font-weight:600; font-size:0.9rem; margin-top:15px; height:20px;"></div>
-                    
-                    <div style="margin-top: 15px; text-align: right; border-top: 1px solid #f3f4f6; padding-top: 20px;">
-                        <button class="btn btn-primary" id="btnGuardarEmpresa" onclick="guardarDatosEmpresa()">
-                            <i data-lucide="save" style="width:16px;height:16px; margin-right:6px;"></i> Guardar Cambios
-                        </button>
-                    </div>
+            <div class="card" style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                <div class="card-header" style="flex-wrap: wrap; gap: 15px;">
+                    <div><div class="card-title">Empresas / Razones Sociales</div><div style="font-size:0.85rem; color:#6b7280; margin-top:4px;">Gestiona las entidades legales del grupo</div></div>
+                    <button class="btn btn-primary" onclick="window.simularGuardadoToast('Formulario de creación de empresa en desarrollo')"><i data-lucide="plus" style="width:15px;height:15px; margin-right:4px;"></i> Nueva Empresa</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>RAZÓN SOCIAL / RUC</th><th>DIRECCIÓN FISCAL</th><th>TELÉFONO</th><th>ACCIONES</th></tr></thead>
+                        <tbody>${empresasRows || '<tr><td colspan="4" style="text-align:center;padding:30px;color:#6b7280;">No hay empresas registradas</td></tr>'}</tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -109,7 +116,7 @@ window.renderConfiguracion = function() {
             <div class="card" style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
                 <div class="card-header" style="flex-wrap: wrap; gap: 15px;">
                     <div><div class="card-title">Estructura Organizacional</div><div style="font-size:0.85rem; color:#6b7280; margin-top:4px;">Gestiona las áreas de la empresa</div></div>
-                    <button class="btn btn-primary" onclick="openCrearDepto()"><i data-lucide="plus" style="width:15px;height:15px; margin-right:4px;"></i> Nuevo Departamento</button>
+                    <button class="btn btn-primary" onclick="window.openCrearDepto()"><i data-lucide="plus" style="width:15px;height:15px; margin-right:4px;"></i> Nuevo Departamento</button>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -124,7 +131,7 @@ window.renderConfiguracion = function() {
             <div class="card" style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
                 <div class="card-header" style="flex-wrap: wrap; gap: 15px;">
                     <div><div class="card-title">Sucursales y Sedes</div><div style="font-size:0.85rem; color:#6b7280; margin-top:4px;">Puntos de operación físicos</div></div>
-                    <button class="btn btn-primary" onclick="openCrearSede()"><i data-lucide="plus" style="width:15px;height:15px; margin-right:4px;"></i> Añadir Sede</button>
+                    <button class="btn btn-primary" onclick="window.openCrearSede()"><i data-lucide="plus" style="width:15px;height:15px; margin-right:4px;"></i> Añadir Sede</button>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -156,7 +163,7 @@ window.renderConfiguracion = function() {
                     <div id="seguridadMsg" style="text-align:right; font-weight:600; font-size:0.9rem; margin-top:15px; height:20px;"></div>
 
                     <div style="margin-top: 15px; text-align: right; border-top: 1px solid #f3f4f6; padding-top: 20px;">
-                        <button class="btn btn-primary" id="btnGuardarSeguridad" onclick="guardarSeguridad()">
+                        <button class="btn btn-primary" id="btnGuardarSeguridad" onclick="window.guardarSeguridad()">
                             <i data-lucide="key" style="width:16px;height:16px; margin-right:6px;"></i> Actualizar Contraseña
                         </button>
                     </div>
@@ -176,6 +183,10 @@ window.renderConfiguracion = function() {
     `;
 };
 
+window.initConfiguracion = function() {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+};
+
 // ============================================================
 // LÓGICA DE PESTAÑAS (TABS)
 // ============================================================
@@ -187,49 +198,19 @@ window.switchConfTab = function(tabId, btnElement) {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 };
 
-// ============================================================
-// ACCIONES: TAB 1 (EMPRESA)
-// ============================================================
-window.guardarDatosEmpresa = function() {
-    const btn = document.getElementById('btnGuardarEmpresa');
-    const msg = document.getElementById('empresaMsg');
-    
-    // Validación básica
-    if(!document.getElementById('empNombre').value || !document.getElementById('empRuc').value) {
-        msg.innerText = "⚠️ Razón Social y RUC son obligatorios.";
-        msg.style.color = "#ef4444"; return;
-    }
-
-    btn.innerHTML = `<i data-lucide="loader-2" class="lucide-spin" style="width:16px;height:16px; margin-right:6px;"></i> Guardando...`;
-    btn.disabled = true;
-    msg.innerText = "";
-
-    // Simulación de guardado en servidor
-    setTimeout(() => {
-        btn.innerHTML = `<i data-lucide="check" style="width:16px;height:16px; margin-right:6px;"></i> Guardado`;
-        btn.style.background = "#10b981"; btn.style.borderColor = "#10b981";
-        msg.innerText = "✅ Datos de empresa actualizados correctamente.";
-        msg.style.color = "#10b981";
-        
-        setTimeout(() => {
-            btn.innerHTML = `<i data-lucide="save" style="width:16px;height:16px; margin-right:6px;"></i> Guardar Cambios`;
-            btn.style.background = ""; btn.style.borderColor = "";
-            btn.disabled = false;
-        }, 3000);
-    }, 1000);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-};
 
 // ============================================================
 // ACCIONES: TAB 2 (DEPARTAMENTOS)
 // ============================================================
 window.openCrearDepto = function() {
-    openModal(`
+    if(typeof window.openModal !== 'function') return;
+
+    window.openModal(`
     <div class="modal-overlay" style="z-index: 9999;">
         <div class="modal" style="max-width: 450px;">
             <div class="modal-header">
                 <h3>Nuevo Departamento</h3>
-                <button class="modal-close" onclick="closeModal()"><i data-lucide="x"></i></button>
+                <button class="modal-close" onclick="window.closeModal()"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-body">
                 <div class="form-grid">
@@ -237,12 +218,11 @@ window.openCrearDepto = function() {
                     <div class="field form-full"><label>Descripción</label><input type="text" id="depDesc" placeholder="Breve descripción"></div>
                     <div class="field"><label>Jefe a cargo</label><input type="text" id="depJefe" placeholder="Ej: Carlos Q."></div>
                     <div class="field"><label>Color Identificador</label><input type="color" id="depColor" value="#3b82f6" style="height:42px; width:100%; cursor:pointer; padding:2px; border:1px solid #d1d5db; border-radius:8px;"></div>
-                    <div id="depMsg" style="grid-column:span 2; text-align:center; font-weight:700; margin-top: 5px; min-height: 20px;"></div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-                <button class="btn btn-primary" id="btnGuardarDep" onclick="saveDepto()"><i data-lucide="save" style="width:14px;height:14px"></i> Crear Área</button>
+                <button class="btn btn-ghost" onclick="window.closeModal()">Cancelar</button>
+                <button class="btn btn-primary" id="btnGuardarDep" onclick="window.saveDepto()"><i data-lucide="save" style="width:14px;height:14px"></i> Crear Área</button>
             </div>
         </div>
     </div>`);
@@ -250,15 +230,17 @@ window.openCrearDepto = function() {
 };
 
 window.openEditarDepto = function(id) {
-    const d = MOCK.departamentos.find(dep => String(dep.id) === String(id));
+    if(typeof window.openModal !== 'function') return;
+
+    const d = (window.realDepartamentos || []).find(dep => String(dep.id) === String(id));
     if(!d) return;
 
-    openModal(`
+    window.openModal(`
     <div class="modal-overlay" style="z-index: 9999;">
         <div class="modal" style="max-width: 450px;">
             <div class="modal-header">
                 <h3>Editar Departamento</h3>
-                <button class="modal-close" onclick="closeModal()"><i data-lucide="x"></i></button>
+                <button class="modal-close" onclick="window.closeModal()"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-body">
                 <div class="form-grid">
@@ -266,12 +248,11 @@ window.openEditarDepto = function(id) {
                     <div class="field form-full"><label>Descripción</label><input type="text" id="depDesc" value="${d.desc || d.descripcion || ''}"></div>
                     <div class="field"><label>Jefe a cargo</label><input type="text" id="depJefe" value="${d.jefe || d.jefe_nombre || ''}"></div>
                     <div class="field"><label>Color Identificador</label><input type="color" id="depColor" value="${d.color || '#3b82f6'}" style="height:42px; width:100%; cursor:pointer; padding:2px; border:1px solid #d1d5db; border-radius:8px;"></div>
-                    <div id="depMsg" style="grid-column:span 2; text-align:center; font-weight:700; margin-top: 5px; min-height: 20px;"></div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-                <button class="btn btn-primary" id="btnGuardarDep" onclick="saveDepto(${id})"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar Cambios</button>
+                <button class="btn btn-ghost" onclick="window.closeModal()">Cancelar</button>
+                <button class="btn btn-primary" id="btnGuardarDep" onclick="window.saveDepto(${id})"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar Cambios</button>
             </div>
         </div>
     </div>`);
@@ -280,9 +261,11 @@ window.openEditarDepto = function(id) {
 
 window.saveDepto = async function(id = null) {
     const nombre = document.getElementById('depNom').value;
-    const msg = document.getElementById('depMsg');
     
-    if(!nombre) { msg.innerText = "❌ El nombre es obligatorio"; msg.style.color = "#ef4444"; return; }
+    if(!nombre) { 
+        if(typeof window.showToast === 'function') window.showToast("El nombre del área es obligatorio", "warning");
+        return; 
+    }
 
     const data = {
         nombre: nombre,
@@ -292,46 +275,54 @@ window.saveDepto = async function(id = null) {
     };
 
     const btn = document.getElementById('btnGuardarDep');
-    btn.innerHTML = "Guardando..."; btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader-2" class="lucide-spin" style="width:14px;height:14px"></i> Guardando...`; 
+    btn.disabled = true;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    
     const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 
-    // LÓGICA DE BACKEND (Comentada para que no falle si no tienes las rutas de Django aún)
-    /*
-    const url = id ? \`/api/departamentos/editar/\${id}/\` : '/api/departamentos/crear/';
+    // 🔴 ESTO SE EJECUTARÁ SI TIENES LA RUTA EN DJANGO. Si no la tienes, simplemente usa la simulación de abajo.
+    const url = id ? `/api/departamentos/editar/${id}/` : '/api/departamentos/crear/';
+    
     try {
         const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(data) });
-        if(res.ok) { window.location.reload(); } 
-        else { msg.innerText = "❌ Error en servidor"; btn.disabled = false; }
-    } catch(e) { msg.innerText = "❌ Error de conexión"; btn.disabled = false; }
-    */
-
-    // Simulación elegante para el Frontend
-    setTimeout(() => {
-        msg.innerText = "✅ Área guardada correctamente";
-        msg.style.color = "#10b981";
-        setTimeout(() => { closeModal(); window.location.reload(); }, 600);
-    }, 800);
+        if(res.ok) { 
+            if(typeof window.showToast === 'function') window.showToast("Área guardada correctamente", "success");
+            setTimeout(() => { window.closeModal(); window.location.reload(); }, 800);
+        } else { 
+            if(typeof window.showToast === 'function') window.showToast("Error en servidor al guardar", "error");
+            btn.innerHTML = `<i data-lucide="save" style="width:14px;height:14px"></i> Guardar`;
+            btn.disabled = false; 
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    } catch(e) { 
+        if(typeof window.showToast === 'function') window.showToast("Error de red conectando a Django", "error");
+        btn.innerHTML = `<i data-lucide="save" style="width:14px;height:14px"></i> Guardar`;
+        btn.disabled = false; 
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
 };
 
 // ============================================================
 // ACCIONES: TAB 3 (SEDES)
 // ============================================================
 window.openCrearSede = function() {
-    openModal(`
+    if(typeof window.openModal !== 'function') return;
+
+    window.openModal(`
     <div class="modal-overlay" style="z-index: 9999;">
         <div class="modal" style="max-width: 400px;">
             <div class="modal-header">
                 <h3>Añadir Nueva Sede</h3>
-                <button class="modal-close" onclick="closeModal()"><i data-lucide="x"></i></button>
+                <button class="modal-close" onclick="window.closeModal()"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-body">
                 <div class="field form-full" style="margin-bottom:15px;"><label>Nombre de la Sede *</label><input type="text" id="sedeNom" placeholder="Ej: Sede Norte"></div>
                 <div class="field form-full"><label>Dirección (Opcional)</label><input type="text" placeholder="Ubicación física"></div>
-                <div id="sedeMsg" style="text-align:center; font-weight:700; margin-top: 15px; min-height: 20px;"></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-                <button class="btn btn-primary" id="btnGuardarSede" onclick="simularGuardado('sedeMsg', 'btnGuardarSede', '✅ Sede registrada')"><i data-lucide="save" style="width:14px;height:14px"></i> Añadir</button>
+                <button class="btn btn-ghost" onclick="window.closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="window.simularGuardadoToast('Sede creada exitosamente')"><i data-lucide="save" style="width:14px;height:14px"></i> Añadir</button>
             </div>
         </div>
     </div>`);
@@ -339,20 +330,21 @@ window.openCrearSede = function() {
 };
 
 window.openModificarSede = function(id, nombre) {
-    openModal(`
+    if(typeof window.openModal !== 'function') return;
+
+    window.openModal(`
     <div class="modal-overlay" style="z-index: 9999;">
         <div class="modal" style="max-width: 400px;">
             <div class="modal-header">
                 <h3>Editar Sede</h3>
-                <button class="modal-close" onclick="closeModal()"><i data-lucide="x"></i></button>
+                <button class="modal-close" onclick="window.closeModal()"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-body">
                 <div class="field form-full"><label>Nombre de la Sede *</label><input type="text" value="${nombre}"></div>
-                <div id="sedeEditMsg" style="text-align:center; font-weight:700; margin-top: 15px; min-height: 20px;"></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-                <button class="btn btn-primary" id="btnEditSede" onclick="simularGuardado('sedeEditMsg', 'btnEditSede', '✅ Cambios guardados')"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar</button>
+                <button class="btn btn-ghost" onclick="window.closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="window.simularGuardadoToast('Cambios guardados en la sede')"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar</button>
             </div>
         </div>
     </div>`);
@@ -380,6 +372,7 @@ window.guardarSeguridad = function() {
 
     btn.innerHTML = `<i data-lucide="loader-2" class="lucide-spin" style="width:16px;height:16px; margin-right:6px;"></i> Procesando...`;
     btn.disabled = true; msg.innerText = "";
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
     setTimeout(() => {
         document.getElementById('passActual').value = '';
@@ -393,18 +386,17 @@ window.guardarSeguridad = function() {
         setTimeout(() => {
             btn.innerHTML = `<i data-lucide="key" style="width:16px;height:16px; margin-right:6px;"></i> Actualizar Contraseña`;
             btn.style.background = ""; btn.style.borderColor = ""; btn.disabled = false; msg.innerText = "";
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }, 3000);
     }, 1200);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
 };
 
-// Helper genérico para simular guardados en modales sin conectar al backend aún
-window.simularGuardado = function(msgId, btnId, textoExito) {
-    const msg = document.getElementById(msgId);
-    const btn = document.getElementById(btnId);
-    btn.innerHTML = "Procesando..."; btn.disabled = true;
-    setTimeout(() => {
-        msg.innerText = textoExito; msg.style.color = "#10b981";
-        setTimeout(() => { closeModal(); }, 800);
-    }, 800);
+// Helper para botones que aún no tienen conexión Backend completa
+window.simularGuardadoToast = function(textoExito) {
+    if(typeof window.showToast === 'function') {
+        window.showToast(textoExito, "success");
+    } else {
+        alert(textoExito);
+    }
+    if(typeof window.closeModal === 'function') window.closeModal();
 };

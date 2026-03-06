@@ -1,5 +1,6 @@
 // ============================================================
 // VIEW: Empleados (Conectado a PostgreSQL vía Django API)
+// Ruta: static/js/views/empleados.js
 // ============================================================
 
 let empFilter = { search: '', dept: '', estado: '', empresa: '' };
@@ -54,7 +55,6 @@ async function cargarDatosDeDB() {
     ]);
 
     dbEmpleados = await resEmp.json();
-    // Si viene dentro de un objeto {data: [...]}, lo extraemos
     if(dbEmpleados.data) dbEmpleados = dbEmpleados.data;
 
     dbDepartamentos = await resDept.json();
@@ -100,18 +100,17 @@ window.renderEmpleados = function() {
   }, 50);
 
   return `
-  <div class="view-header">
+  <div class="view-header" style="animation: fadeIn 0.4s ease-out;">
     <div class="view-header-left">
       <h1>Empleados</h1>
       <p id="contador-empleados">Cargando colaboradores...</p>
     </div>
     <div class="view-header-actions">
       <button class="btn btn-ghost" onclick="exportarEmpleadosExcel()"><i data-lucide="download" style="width:15px;height:15px"></i> Exportar</button>
-      <button class="btn btn-primary" onclick="openNewEmpModal()"><i data-lucide="user-plus" style="width:15px;height:15px"></i> Nuevo Empleado</button>
     </div>
   </div>
 
-  <div class="toolbar">
+  <div class="toolbar" style="animation: fadeIn 0.4s ease-out;">
     <div class="toolbar-left">
       <div class="search-box">
         <i data-lucide="search" class="search-box-icon" style="width:15px;height:15px"></i>
@@ -144,7 +143,7 @@ window.renderEmpleados = function() {
     </div>
   </div>
 
-  <div id="empContainer"></div>`;
+  <div id="empContainer" style="animation: fadeIn 0.4s ease-out;"></div>`;
 }
 
 window.setView = function(mode) {
@@ -160,12 +159,10 @@ window.filterEmpleados = function() {
 
   let list = dbEmpleados.filter(e => {
     // 🔥 1. CORRECCIÓN DEL SALVAVIDAS DE LA SEDE:
-    // Capturamos el ID de la sede del empleado de forma segura
     const empSede = e.sede_id || e.sede;
-    // Pasa el filtro si NO tiene sede asignada, o si la sede coincide con la actual
     const matchSede = !empSede || String(empSede) === String(window.currentSedeId);
     
-    // 🔥 2. BÚSQUEDA MÁS SEGURA (evita errores si nombres/apellidos son nulos)
+    // 🔥 2. BÚSQUEDA MÁS SEGURA
     const fullName = `${e.nombres || ''} ${e.apellidos || ''}`.toLowerCase();
     
     const matchQ = !q || fullName.includes(q) || 
@@ -177,7 +174,6 @@ window.filterEmpleados = function() {
     const matchE = !est || e.estado === est;
     const matchEmpresa = !empFiltro || String(e.empresa_id || e.empresa) === empFiltro;
     
-    // Solo si cumple TODOS los criterios se mostrará
     return matchSede && matchQ && matchD && matchE && matchEmpresa;
   });
 
@@ -256,7 +252,7 @@ function empTable(list) {
 }
 
 // ----------------------------------------------------
-// EXPORTAR, VER DETALLE, MODAL NUEVO, EDITAR...
+// EXPORTAR, VER DETALLE, EDITAR, DESHABILITAR
 // ----------------------------------------------------
 
 window.exportarEmpleadosExcel = function() {
@@ -351,107 +347,6 @@ window.switchTab = function (el, tabId) {
   });
 };
 
-window.openNewEmpModal = function () {
-  const deptOptions = dbDepartamentos.map(d => `<option value="${d.id}">${d.nombre}</option>`).join('');
-  const empresaOptions = dbEmpresas.map(e => `<option value="${e.id}" data-ruc="${e.ruc}">${e.razon_social || e.nombre}</option>`).join('');
-  const sedeOptions = dbSedes.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('');
-  const puestoOptions = dbPuestos.map(p => {
-      const dName = dbDepartamentos.find(d => String(d.id) === String(p.departamento_id || p.departamento))?.nombre || '';
-      return `<option value="${p.id}">${p.nombre} (${dName})</option>`;
-  }).join('');
-
-  openModal(`
-  <div class="modal-overlay">
-    <div class="modal modal-lg">
-      <div class="modal-header">
-        <h3>Nuevo Empleado</h3>
-        <button class="modal-close" onclick="closeModal()"><i data-lucide="x" style="width:14px;height:14px"></i></button>
-      </div>
-      <div class="modal-body" style="padding-top: 15px;">
-        <div class="section-label">1. Datos Corporativos</div>
-        <div class="form-grid" style="margin-bottom:24px;">
-          <div class="field"><label>Razón Social (Empresa) *</label><select id="neEmpresa" onchange="document.getElementById('newEmpRuc').value = this.options[this.selectedIndex].dataset.ruc || ''"><option value="" data-ruc="">Seleccionar...</option>${empresaOptions}</select></div>
-          <div class="field"><label>RUC</label><input type="text" id="newEmpRuc" readonly style="background:var(--gray-100); color:var(--text-muted); font-weight:600;" placeholder="Autocompletado"></div>
-          <div class="field"><label>Sede *</label><select id="neSede"><option value="">Seleccionar...</option>${sedeOptions}</select></div>
-          <div class="field"><label>Departamento *</label><select id="neDept"><option value="">Seleccionar...</option>${deptOptions}</select></div>
-          <div class="field form-full"><label>Puesto / Cargo *</label><select id="nePuesto"><option value="">Seleccionar...</option>${puestoOptions}</select></div>
-          <div class="field form-full"><label>Email corporativo</label><input type="email" id="neEmail" placeholder="nombre@telecable.pe"></div>
-        </div>
-        <div class="section-label">2. Datos Personales</div>
-        <div class="form-grid" style="margin-bottom:24px;">
-          <div class="field"><label>Nombres *</label><input type="text" id="neNombres"></div>
-          <div class="field"><label>Apellidos *</label><input type="text" id="neApellidos"></div>
-          <div class="field"><label>DNI *</label><input type="text" id="neDni" maxlength="8"></div>
-          <div class="field"><label>Teléfono</label><input type="text" id="neTel"></div>
-          <div class="field"><label>Fecha Nacimiento</label><input type="date" id="neNacimiento"></div>
-          <div class="field"><label>Género *</label><select id="neGenero"><option value="M">Masculino</option><option value="F">Femenino</option></select></div>
-        </div>
-        <div class="section-label">3. Contrato y Planilla</div>
-        <div class="form-grid">
-          <div class="field"><label>Fecha Ingreso *</label><input type="date" id="neIngreso"></div>
-          <div class="field"><label>Tipo Contrato *</label><select id="neContrato"><option value="Indefinido">Indefinido</option><option value="Plazo Fijo">Plazo Fijo</option><option value="Practicante">Practicante</option><option value="Recibo por Honorarios">Recibo por Honorarios</option></select></div>
-          <div class="field"><label>Sueldo Base (S/) *</label><input type="number" id="neSueldo" placeholder="1025" min="0"></div>
-          <div class="field"><label>Sistema Pensión</label><select id="neAfp"><option value="">Ninguno</option><option value="ONP">ONP</option><option value="Prima AFP">Prima AFP</option><option value="Integra">Integra</option><option value="Hábitat">Hábitat</option><option value="Profuturo">Profuturo</option></select></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-primary" id="btnGuardarEmp" onclick="saveNewEmp()"><i data-lucide="save" style="width:14px;height:14px"></i> Guardar Empleado</button>
-      </div>
-    </div>
-  </div>`);
-  if(typeof lucide !== 'undefined') lucide.createIcons();
-};
-
-window.saveNewEmp = async function () {
-    const btn = document.getElementById('btnGuardarEmp');
-    const data = {
-        empresa_id: document.getElementById('neEmpresa').value, sede_id: document.getElementById('neSede').value,
-        departamento_id: document.getElementById('neDept').value, puesto_id: document.getElementById('nePuesto').value,
-        email: document.getElementById('neEmail').value, nombres: document.getElementById('neNombres').value,
-        apellidos: document.getElementById('neApellidos').value, dni: document.getElementById('neDni').value,
-        genero: document.getElementById('neGenero').value, telefono: document.getElementById('neTel').value,
-        fecha_nacimiento: document.getElementById('neNacimiento').value, fecha_ingreso: document.getElementById('neIngreso').value,
-        tipo_contrato: document.getElementById('neContrato').value, sueldo_base: document.getElementById('neSueldo').value,
-        afp_onp: document.getElementById('neAfp').value
-    };
-
-    if(!data.empresa_id || !data.sede_id || !data.departamento_id || !data.nombres || !data.apellidos || !data.dni || !data.sueldo_base || !data.fecha_ingreso) {
-        return showSystemToast("Completa los campos obligatorios (*)", "warning");
-    }
-
-    btn.innerHTML = `<i data-lucide="loader-2" class="lucide-spin" style="width:14px;height:14px"></i> Guardando...`; btn.disabled = true; lucide.createIcons();
-    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-
-    try {
-        const response = await fetch('/api/empleados/crear/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(data) });
-        const result = await response.json();
-        
-        if(response.ok || result.success) {
-            closeModal(); await cargarDatosDeDB(); filterEmpleados();
-            // Para éxito rotundo, dejamos el modal grande que se ve muy bien
-            openModal(`
-              <div class="modal-overlay">
-                <div class="modal" style="max-width: 380px; text-align: center; padding: 40px 20px;">
-                    <div style="width: 70px; height: 70px; background: var(--success-50); color: var(--success); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
-                        <i data-lucide="check" style="width: 36px; height: 36px;"></i>
-                    </div>
-                    <h3 style="font-size: 1.4rem; margin-bottom: 10px; font-weight: 800;">¡Registro Exitoso!</h3>
-                    <p style="color: var(--text-secondary); margin-bottom: 25px;">El empleado <strong>${data.nombres}</strong> ha sido guardado correctamente.</p>
-                    <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="closeModal()">Continuar</button>
-                </div>
-              </div>
-            `);
-        } else {
-            showSystemToast(result.message || "No se pudo guardar", "error");
-            btn.innerHTML = "Guardar Empleado"; btn.disabled = false;
-        }
-    } catch (e) {
-        showSystemToast("Error de conexión al servidor", "error"); 
-        btn.innerHTML = "Guardar Empleado"; btn.disabled = false;
-    }
-};
-
 window.editEmpModal = function (id) {
   const emp = dbEmpleados.find(e => String(e.id) === String(id));
   if(!emp) return;
@@ -513,9 +408,6 @@ window.editEmpModal = function (id) {
             <button class="btn btn-ghost" style="color:var(--danger)" onclick="confirmDisableEmp(${emp.id})" title="Dar de baja y quitar acceso">
                 <i data-lucide="user-x" style="width:14px;height:14px"></i> Deshabilitar
             </button>
-            <button class="btn btn-ghost" onclick="changePasswordModal(${emp.id})" title="Cambiar clave de acceso">
-                <i data-lucide="key" style="width:14px;height:14px"></i> Contraseña
-            </button>
         </div>
         <div style="display:flex; gap:8px;">
             <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
@@ -563,10 +455,6 @@ window.updateEmp = async function (id) {
         btn.innerHTML = "Actualizar Datos"; btn.disabled = false;
     }
 };
-
-// ============================================================
-// MODALES PERSONALIZADOS: DESHABILITAR Y CAMBIAR CONTRASEÑA
-// ============================================================
 
 window.confirmDisableEmp = function(id) {
     const emp = dbEmpleados.find(e => String(e.id) === String(id));
@@ -617,66 +505,5 @@ window.executeDisableEmp = async function(id) {
     } catch (e) {
         showSystemToast("Error de conexión al servidor.", "error");
         btn.innerHTML = "Sí, dar de baja"; btn.disabled = false;
-    }
-};
-
-window.changePasswordModal = function(id) {
-    const emp = dbEmpleados.find(e => String(e.id) === String(id));
-    if(!emp) return;
-
-    openModal(`
-    <div class="modal-overlay" style="z-index: 99999;">
-        <div class="modal" style="max-width: 400px; padding:20px;">
-            <div class="modal-header">
-                <h3>Nueva Contraseña</h3>
-                <button class="modal-close" onclick="editEmpModal(${id})"><i data-lucide="x" style="width:14px;height:14px"></i></button>
-            </div>
-            <div class="modal-body" style="padding-top:10px;">
-                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">
-                    Escribe la nueva clave de acceso para <strong>${emp.nombres}</strong>. 
-                </p>
-                <div class="field form-full">
-                    <label>Contraseña (Min. 6 caracteres)</label>
-                    <input type="password" id="newPassInput" placeholder="••••••••">
-                </div>
-            </div>
-            <div class="modal-footer" style="margin-top:20px;">
-                <button class="btn btn-ghost" onclick="editEmpModal(${id})">Volver</button>
-                <button class="btn btn-primary" id="btnSavePass" onclick="savePassword(${id})"><i data-lucide="check" style="width:14px;height:14px"></i> Guardar Clave</button>
-            </div>
-        </div>
-    </div>`);
-};
-
-window.savePassword = async function(id) {
-    const newPass = document.getElementById('newPassInput').value;
-    if(!newPass || newPass.length < 6) {
-        return showSystemToast("La contraseña debe tener al menos 6 caracteres.", "warning");
-    }
-
-    const btn = document.getElementById('btnSavePass');
-    btn.innerHTML = `<i data-lucide="loader-2" class="lucide-spin" style="width:14px;height:14px"></i> Guardando...`;
-    btn.disabled = true; lucide.createIcons();
-
-    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-
-    try {
-        const response = await fetch(`/api/empleados/cambiar-password/${id}/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-            body: JSON.stringify({ password: newPass })
-        });
-        const result = await response.json();
-
-        if(response.ok && result.success) {
-            showSystemToast("Contraseña actualizada con éxito.", "success");
-            editEmpModal(id); 
-        } else {
-            showSystemToast(result.message || "Fallo al cambiar contraseña.", "error");
-            btn.innerHTML = "Guardar Clave"; btn.disabled = false;
-        }
-    } catch (e) {
-        showSystemToast("Error de conexión al servidor.", "error");
-        btn.innerHTML = "Guardar Clave"; btn.disabled = false;
     }
 };

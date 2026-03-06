@@ -6,7 +6,7 @@
 let dbAdminDocs = [];
 let dbAdminEmps = [];
 let dbAdminDepts = [];
-let isDocsLoaded = false; // Bandera de seguridad por si la BD tiene 0 documentos
+let isDocsLoaded = false;
 
 async function cargarDatosDocumentos() {
     try {
@@ -27,18 +27,30 @@ async function cargarDatosDocumentos() {
         isDocsLoaded = true;
     } catch (error) {
         console.error("Error conectando a PostgreSQL:", error);
-        isDocsLoaded = true; // Para que no se quede trabado el loader en caso de error
+        isDocsLoaded = true; 
     }
 }
 
+window.initDocumentos = function() {
+    if(isDocsLoaded) return;
+    
+    if(typeof window.renderDocumentos === 'function') {
+        const container = document.getElementById('viewContent');
+        if(container) container.innerHTML = window.renderDocumentos();
+    }
+};
+
 window.renderDocumentos = function() {
-    // 🔥 AUTO-ARRANQUE CON LOADER AZUL SEGURO
     if (!isDocsLoaded) {
         setTimeout(async () => {
             await cargarDatosDocumentos();
             const container = document.getElementById('admin-docs-container');
-            if (container) {
-                container.innerHTML = renderTablaDocumentosAdmin();
+            const statsContainer = document.getElementById('admin-docs-stats');
+            
+            if (container && statsContainer) {
+                const { htmlStats, htmlTable } = renderTablaDocumentosAdmin();
+                statsContainer.innerHTML = htmlStats;
+                container.innerHTML = htmlTable;
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         }, 50);
@@ -49,12 +61,18 @@ window.renderDocumentos = function() {
                 <h1>Documentos</h1>
                 <p>Gestión de repositorio y expedientes de la empresa</p>
             </div>
+            <div class="view-header-actions">
+                <button class="btn btn-primary" onclick="window.openSubirDocumento()"><i data-lucide="upload" style="width:15px;height:15px"></i> Subir Documento</button>
+            </div>
         </div>
+        <div id="admin-docs-stats"></div>
         <div id="admin-docs-container" style="padding: 60px; text-align: center; color: #64748b; animation: fadeIn 0.4s ease-out;">
             <i data-lucide="loader-2" class="lucide-spin" style="width:40px;height:40px;margin-bottom:15px; color:#4f46e5;"></i>
             <p style="font-weight: 600; font-size: 1.1rem;">Sincronizando Repositorio con PostgreSQL...</p>
         </div>`;
     }
+
+    const { htmlStats, htmlTable } = renderTablaDocumentosAdmin();
 
     return `
     <div style="animation: fadeIn 0.4s ease-out;">
@@ -64,17 +82,35 @@ window.renderDocumentos = function() {
                 <p>${dbAdminDocs.length} documentos registrados en el repositorio</p>
             </div>
             <div class="view-header-actions">
-                <button class="btn btn-primary" onclick="openSubirDocumento()"><i data-lucide="upload" style="width:15px;height:15px"></i> Subir Documento</button>
+                <button class="btn btn-primary" onclick="window.openSubirDocumento()"><i data-lucide="upload" style="width:15px;height:15px"></i> Subir Documento</button>
             </div>
         </div>
+        <div id="admin-docs-stats">${htmlStats}</div>
         <div id="admin-docs-container">
-            ${renderTablaDocumentosAdmin()}
+            ${htmlTable}
         </div>
     </div>`;
 };
 
 function renderTablaDocumentosAdmin() {
-    const countTipo = (t) => dbAdminDocs.filter(d => (d.tipo_documento || d.tipo) === t).length;
+    const formatDateLocal = (dateStr) => {
+        if (!dateStr || dateStr === '—') return '—';
+        const d = new Date(dateStr);
+        if (isNaN(d)) return dateStr;
+        const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        return `${d.getUTCDate()} ${meses[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+    };
+
+    const currentSedeId = typeof window.currentSedeId !== 'undefined' ? window.currentSedeId : (window.realSedes && window.realSedes[0] ? window.realSedes[0].id : null);
+
+    const filteredDocs = dbAdminDocs.filter(d => {
+        const empId = d.empleado_id || d.empId;
+        if(!empId) return true; 
+        const emp = dbAdminEmps.find(e => String(e.id) === String(empId));
+        return emp && (!emp.sede_id || String(emp.sede_id) === String(currentSedeId));
+    });
+
+    const countTipo = (t) => filteredDocs.filter(d => (d.tipo_documento || d.tipo) === t).length;
     const stats = {
         Contratos: countTipo('Contrato'),
         IDs: countTipo('ID'),
@@ -84,9 +120,10 @@ function renderTablaDocumentosAdmin() {
         Boletas: countTipo('Boleta')
     };
 
-    const empOptions = dbAdminEmps.map(e => `<option value="${e.id}">${e.nombres} ${e.apellidos}</option>`).join('');
+    const empsSede = dbAdminEmps.filter(e => !e.sede_id || String(e.sede_id) === String(currentSedeId));
+    const empOptions = empsSede.map(e => `<option value="${e.id}">${e.nombres} ${e.apellidos}</option>`).join('');
 
-    const rows = dbAdminDocs.slice().reverse().map(d => {
+    const rows = filteredDocs.slice().reverse().map(d => {
         const empId = d.empleado_id || d.empId;
         const emp = dbAdminEmps.find(e => String(e.id) === String(empId));
         const dept = emp ? dbAdminDepts.find(x => String(x.id) === String(emp.departamento_id || emp.deptId)) : null;
@@ -113,18 +150,18 @@ function renderTablaDocumentosAdmin() {
                 </div>
             </td>
             <td><span class="badge ${badgeColor}">${docTipo}</span></td>
-            <td>${typeof window.fmtDate === 'function' ? window.fmtDate(d.fecha_subida || d.fecha) : (d.fecha_subida || d.fecha)}</td>
+            <td>${formatDateLocal(d.fecha_subida || d.fecha)}</td>
             <td style="color:#6b7280; font-size:0.85rem; font-weight:500;">${d.tamaño_kb || d.tamano || '120 KB'}</td>
             <td>
                 <div style="display:flex; gap:8px; align-items:center;">
-                    <button class="btn btn-ghost" style="padding:4px; color:#3b82f6;" title="Ver Detalle" onclick="abrirVistaDocumento('${d.id}')"><i data-lucide="eye" style="width:16px;height:16px;"></i></button>
-                    <button class="btn btn-ghost" style="padding:4px; color:#ef4444;" title="Eliminar Documento" onclick="confirmarEliminarDoc('${d.id}')"><i data-lucide="trash-2" style="width:16px;height:16px;"></i></button>
+                    <button class="btn btn-ghost" style="padding:4px; color:#3b82f6;" title="Ver Detalle" onclick="window.abrirVistaDocumento('${d.id}')"><i data-lucide="eye" style="width:16px;height:16px;"></i></button>
+                    <button class="btn btn-ghost" style="padding:4px; color:#ef4444;" title="Eliminar Documento" onclick="window.confirmarEliminarDoc('${d.id}')"><i data-lucide="trash-2" style="width:16px;height:16px;"></i></button>
                 </div>
             </td>
         </tr>`;
     }).join('');
 
-    return `
+    const htmlStats = `
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:15px; margin-bottom:25px;">
         ${[
             { lbl: 'Contratos', val: stats.Contratos, ic: 'edit', color: '#4f46e5' },
@@ -144,21 +181,22 @@ function renderTablaDocumentosAdmin() {
                 </div>
             </div>
         `).join('')}
-    </div>
+    </div>`;
 
+    const htmlTable = `
     <div class="card">
         <div class="card-header" style="flex-wrap: wrap;">
             <div class="card-title">Repositorio General</div>
             <div style="display:flex; gap:8px;">
                 <div style="position:relative;">
                     <i data-lucide="search" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); width:14px; color:#9ca3af;"></i>
-                    <input type="text" id="filtroDocSearch" class="filter-select" placeholder="Buscar documentos..." style="padding-left:30px; width:200px;" onkeyup="ejecutarFiltrosDocs()">
+                    <input type="text" id="filtroDocSearch" class="filter-select" placeholder="Buscar documentos..." style="padding-left:30px; width:200px;" onkeyup="window.ejecutarFiltrosDocs()">
                 </div>
-                <select class="filter-select" id="filtroDocEmp" onchange="ejecutarFiltrosDocs()">
+                <select class="filter-select" id="filtroDocEmp" onchange="window.ejecutarFiltrosDocs()">
                     <option value="">Todos los empleados</option>
                     ${empOptions}
                 </select>
-                <select class="filter-select" id="filtroDocTipo" onchange="ejecutarFiltrosDocs()">
+                <select class="filter-select" id="filtroDocTipo" onchange="window.ejecutarFiltrosDocs()">
                     <option value="">Todos los tipos</option>
                     <option>Contrato</option>
                     <option>Boleta</option>
@@ -172,13 +210,13 @@ function renderTablaDocumentosAdmin() {
         <div class="table-wrap">
             <table>
                 <thead><tr><th>EMPLEADO</th><th>DOCUMENTO</th><th>TIPO</th><th>FECHA</th><th>TAMAÑO</th><th>ACCIONES</th></tr></thead>
-                <tbody id="docTableBody">${rows || '<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280;">No hay documentos registrados</td></tr>'}</tbody>
+                <tbody id="docTableBody">${rows || '<tr><td colspan="6" style="text-align:center;padding:40px;color:#6b7280;">No hay documentos registrados en esta sede</td></tr>'}</tbody>
             </table>
         </div>
     </div>`;
-}
 
-window.initDocumentos = function() { };
+    return { htmlStats, htmlTable };
+}
 
 window.ejecutarFiltrosDocs = function() {
     const search = document.getElementById('filtroDocSearch').value.toLowerCase();
@@ -208,9 +246,6 @@ window.ejecutarFiltrosDocs = function() {
     }
 };
 
-// ============================================================
-// 🔥 MODAL: VISOR DE DOCUMENTOS INTELIGENTE 🔥
-// ============================================================
 window.abrirVistaDocumento = function(id) {
     const doc = dbAdminDocs.find(d => String(d.id) === String(id));
     if (!doc) return;
@@ -221,9 +256,17 @@ window.abrirVistaDocumento = function(id) {
     const empName = emp ? `${emp.nombres} ${emp.apellidos}` : 'Uso General / Empresa';
     const docName = doc.nombre_archivo || doc.nombre || doc.titulo;
     const docTipo = doc.tipo_documento || doc.tipo;
-    const fecha = typeof window.fmtDate === 'function' ? window.fmtDate(doc.fecha_subida || doc.fecha) : (doc.fecha_subida || doc.fecha);
+    
+    const formatDateLocal = (dateStr) => { if (!dateStr || dateStr === '—') return '—'; const d = new Date(dateStr); if (isNaN(d)) return dateStr; const m = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']; return `${d.getUTCDate()} ${m[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+    
+    const fecha = formatDateLocal(doc.fecha_subida || doc.fecha);
     const tamano = doc.tamaño_kb || doc.tamano || '120 KB';
-    const archivoUrl = doc.archivo || doc.url || '';
+    
+    // 🛠️ CORRECCIÓN DE LA RUTA DEL ARCHIVO 🛠️
+    let archivoUrl = doc.archivo || doc.url || '';
+    if (archivoUrl && !archivoUrl.startsWith('http') && !archivoUrl.startsWith('/')) {
+        archivoUrl = '/media/' + archivoUrl; 
+    }
 
     let iconType = 'file-text';
     let color = '#3b82f6';
@@ -259,7 +302,7 @@ window.abrirVistaDocumento = function(id) {
                 ${previewHTML}
             </div>
             <div style="flex: 1; padding: 35px 30px; position: relative; display: flex; flex-direction: column; justify-content: space-between; background: white;">
-                <button class="modal-close" onclick="closeModal()" style="position: absolute; right: 15px; top: 15px; background: #f3f4f6; border-radius: 50%; padding: 6px;"><i data-lucide="x" style="width:16px;height:16px;"></i></button>
+                <button class="modal-close" onclick="window.closeModal()" style="position: absolute; right: 15px; top: 15px; background: #f3f4f6; border-radius: 50%; padding: 6px;"><i data-lucide="x" style="width:16px;height:16px;"></i></button>
                 <div>
                     <div style="background:${color}15; width:65px; height:65px; border-radius:16px; display:flex; align-items:center; justify-content:center; margin-bottom: 20px;">
                         <i data-lucide="${iconType}" style="width:32px; height:32px; color:${color};"></i>
@@ -284,7 +327,7 @@ window.abrirVistaDocumento = function(id) {
                     <div id="descargaMsg" style="margin-top: 20px; font-weight: 700; font-size: 0.95rem; height: 20px; text-align:center;"></div>
                 </div>
                 <div style="margin-top: 20px;">
-                    <button class="btn btn-primary" id="btnDescargarModal" onclick="ejecutarDescargaDoc('${archivoUrl}', '${docName}')" style="background:${color}; border-color:${color}; width:100%; justify-content:center; padding: 14px; font-size: 1rem; box-shadow: 0 4px 6px ${color}40;">
+                    <button class="btn btn-primary" id="btnDescargarModal" onclick="window.ejecutarDescargaDoc('${archivoUrl}', '${docName}')" style="background:${color}; border-color:${color}; width:100%; justify-content:center; padding: 14px; font-size: 1rem; box-shadow: 0 4px 6px ${color}40;">
                         <i data-lucide="download" style="width:18px;height:18px; margin-right:8px;"></i> Descargar Archivo
                     </button>
                 </div>
@@ -325,15 +368,14 @@ window.ejecutarDescargaDoc = function(archivoUrl, nombreDoc) {
         link.click();
         document.body.removeChild(link);
         
-        setTimeout(() => closeModal(), 2000);
+        setTimeout(() => window.closeModal(), 2000);
     }, 800);
 };
 
-// ============================================================
-// MODAL: SUBIR Y ELIMINAR DOCUMENTO (Conexión a BD Django)
-// ============================================================
 window.openSubirDocumento = function() {
-    const empOptions = dbAdminEmps.map(e => `<option value="${e.id}">${e.nombres} ${e.apellidos}</option>`).join('');
+    const currentSedeId = typeof window.currentSedeId !== 'undefined' ? window.currentSedeId : null;
+    const empsSede = dbAdminEmps.filter(e => !e.sede_id || String(e.sede_id) === String(currentSedeId));
+    const empOptions = empsSede.map(e => `<option value="${e.id}">${e.nombres} ${e.apellidos}</option>`).join('');
     
     if(typeof window.openModal !== 'function') return;
 
@@ -342,7 +384,7 @@ window.openSubirDocumento = function() {
         <div class="modal" style="max-width: 500px;">
             <div class="modal-header">
                 <h3>Subir Documento</h3>
-                <button class="modal-close" onclick="closeModal()"><i data-lucide="x"></i></button>
+                <button class="modal-close" onclick="window.closeModal()"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-body">
                 <div class="form-grid">
@@ -366,7 +408,7 @@ window.openSubirDocumento = function() {
                         <div style="border: 2px dashed #d1d5db; border-radius: 8px; padding: 30px; text-align: center; background: #f9fafb; cursor: pointer;" onclick="document.getElementById('dFile').click()">
                             <i data-lucide="upload-cloud" style="width:30px; height:30px; color:#9ca3af; margin-bottom:10px;"></i>
                             <div style="font-weight:600; color:#4b5563;">Haz clic para buscar archivo</div>
-                            <input type="file" id="dFile" style="display:none;" onchange="actualizarNombreArchivo(this)">
+                            <input type="file" id="dFile" style="display:none;" onchange="window.actualizarNombreArchivo(this)">
                         </div>
                         <div id="dFileName" style="margin-top:8px; font-size:13px; font-weight:600; color:#3b82f6; text-align:center;"></div>
                     </div>
@@ -374,8 +416,8 @@ window.openSubirDocumento = function() {
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-                <button class="btn btn-primary" id="dBtn" onclick="saveDocumento()"><i data-lucide="save" style="width:14px;height:14px"></i> Subir a Base de Datos</button>
+                <button class="btn btn-ghost" onclick="window.closeModal()">Cancelar</button>
+                <button class="btn btn-primary" id="dBtn" onclick="window.saveDocumento()"><i data-lucide="save" style="width:14px;height:14px"></i> Subir a Base de Datos</button>
             </div>
         </div>
     </div>`);
@@ -389,11 +431,9 @@ window.actualizarNombreArchivo = function(input) {
 window.saveDocumento = async function() {
     const nombre = document.getElementById('dNom').value;
     const fileInput = document.getElementById('dFile');
-    const msgDiv = document.getElementById('dMsg');
 
     if (!nombre || !fileInput.files[0]) {
-        msgDiv.innerText = "⚠️ Completa el nombre y selecciona un archivo.";
-        msgDiv.style.color = '#ef4444'; 
+        if(typeof window.showToast === 'function') window.showToast("Completa el nombre y selecciona un archivo.", "warning");
         return;
     }
 
@@ -402,11 +442,7 @@ window.saveDocumento = async function() {
     btn.disabled = true;
     if(typeof lucide !== 'undefined') lucide.createIcons();
 
-    msgDiv.innerText = "Subiendo archivo a PostgreSQL..."; 
-    msgDiv.style.color = '#3b82f6';
-
     const formData = new FormData();
-    // 🔥 CORRECCIÓN CRÍTICA: Los nombres deben ser idénticos a los que espera views.py
     formData.append('empId', document.getElementById('dEmp').value);
     formData.append('nombre', nombre); 
     formData.append('tipo', document.getElementById('dTipo').value);
@@ -422,24 +458,20 @@ window.saveDocumento = async function() {
         });
         
         if (res.ok) {
-            msgDiv.innerText = "✅ ¡Documento guardado con éxito!"; 
-            msgDiv.style.color = '#10b981';
+            if(typeof window.showToast === 'function') window.showToast("¡Documento guardado con éxito!", "success");
             
-            // Refrescar el módulo en 1 segundo
             setTimeout(() => {
-                closeModal();
-                isDocsLoaded = false; // Forzamos a que vuelva a buscar de la BD
+                window.closeModal();
+                isDocsLoaded = false; 
                 if(typeof window.navigate === 'function') window.navigate('documentos');
             }, 1000);
         } else {
-            msgDiv.innerText = "❌ Error del servidor al subir."; 
-            msgDiv.style.color = '#ef4444';
+            if(typeof window.showToast === 'function') window.showToast("Error del servidor al subir.", "error");
             btn.innerHTML = `<i data-lucide="save" style="width:14px;height:14px"></i> Subir a Base de Datos`; 
             btn.disabled = false;
         }
     } catch (e) {
-        msgDiv.innerText = "❌ Error de red conectando con Django."; 
-        msgDiv.style.color = '#ef4444';
+        if(typeof window.showToast === 'function') window.showToast("Error de red conectando con Django.", "error");
         btn.innerHTML = `<i data-lucide="save" style="width:14px;height:14px"></i> Subir a Base de Datos`; 
         btn.disabled = false;
     }
@@ -457,8 +489,8 @@ window.confirmarEliminarDoc = function(id) {
             <h3 style="font-size: 1.4rem; margin-bottom: 10px; color: #111827;">Eliminar Documento</h3>
             <p style="color: #6b7280; font-size: 1rem; margin-bottom: 25px;">¿Seguro de que deseas eliminar este archivo? Esta acción es irreversible.</p>
             <div style="display: flex; justify-content: center; gap: 12px;">
-                <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-                <button class="btn btn-primary" id="btnDelDoc" style="background: #ef4444; border-color: #ef4444;" onclick="ejecutarEliminarDoc('${id}')">Sí, Eliminar</button>
+                <button class="btn btn-ghost" onclick="window.closeModal()">Cancelar</button>
+                <button class="btn btn-primary" id="btnDelDoc" style="background: #ef4444; border-color: #ef4444;" onclick="window.ejecutarEliminarDoc('${id}')">Sí, Eliminar</button>
             </div>
         </div>
     </div>`);
@@ -483,24 +515,16 @@ window.ejecutarEliminarDoc = async function(id) {
         });
 
         if (res.ok) {
-            closeModal();
-            isDocsLoaded = false; // Forzamos refresco desde BD
+            window.closeModal();
+            isDocsLoaded = false; 
             if(typeof window.navigate === 'function') window.navigate('documentos');
-            if(typeof window.showSystemToast === 'function') window.showSystemToast("Documento eliminado de la Base de Datos.", "success");
+            if(typeof window.showToast === 'function') window.showToast("Documento eliminado correctamente.", "success");
         } else {
-            const modalBody = document.querySelector('.modal p');
-            if (modalBody) {
-                modalBody.innerHTML = "❌ Error: No se pudo eliminar de la base de datos.";
-                modalBody.style.color = "#ef4444";
-            }
+            if(typeof window.showToast === 'function') window.showToast("No se pudo eliminar de la base de datos.", "error");
             btn.innerHTML = "Sí, Eliminar"; btn.disabled = false;
         }
     } catch (e) {
-        const modalBody = document.querySelector('.modal p');
-        if (modalBody) {
-            modalBody.innerHTML = "❌ Error de conexión con el servidor.";
-            modalBody.style.color = "#ef4444";
-        }
+        if(typeof window.showToast === 'function') window.showToast("Error de conexión con el servidor.", "error");
         btn.innerHTML = "Sí, Eliminar"; btn.disabled = false;
     }
 };

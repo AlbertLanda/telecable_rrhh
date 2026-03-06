@@ -77,10 +77,10 @@
                 </div>
             </nav>
             <div class="sidebar-footer">
-                <div class="sidebar-user" onclick="logout()">
+                <div class="sidebar-user" onclick="window.logout()">
                     <div class="s-avatar" id="sidebarInitials">CQ</div>
                     <div class="s-user-info">
-                        <div class="s-username" id="sidebarName">Carlos Quispe</div>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+                        <div class="s-username" id="sidebarName">Carlos Quispe</div>
                         <div class="s-role" id="sidebarRole">Administrador</div>
                     </div>
                     <i data-lucide="log-out" class="s-logout" style="width:15px;height:15px"></i>
@@ -98,11 +98,11 @@
                 <div class="header-actions">
                     <div class="company-switcher" id="sedeSwitcher">
                         <i data-lucide="map-pin" style="width:16px;height:16px;color:var(--primary);"></i>
-                        <select id="currentSede" onchange="switchSede(this.value)"></select>
+                        <select id="currentSede" onchange="window.switchSede(this.value)"></select>
                     </div>
 
                     <div style="position: relative;">
-                        <button class="hdr-btn" title="Notificaciones" onclick="toggleDropdown('notifDropdown')">
+                        <button class="hdr-btn" title="Notificaciones" onclick="window.toggleDropdown('notifDropdown')">
                             <i data-lucide="bell" style="width:18px;height:18px"></i>
                             <span class="notif-dot" id="notifDot" style="display: none;"></span>
                         </button>
@@ -113,7 +113,7 @@
                     </div>
 
                     <div style="position: relative;">
-                        <button class="hdr-btn" title="Soporte TI" onclick="toggleDropdown('helpDropdown')">
+                        <button class="hdr-btn" title="Soporte TI" onclick="window.toggleDropdown('helpDropdown')">
                             <i data-lucide="help-circle" style="width:18px;height:18px"></i>
                         </button>
                         <div class="dropdown-menu" id="helpDropdown" style="width: 260px;">
@@ -142,71 +142,72 @@
                 </div>
             </header>
             <div class="view-content" id="viewContent">
-                </div>
+            </div>
         </div>
     </div>
 
    <div id="modalContainer"></div>
-
-    <script src="{% static 'js/mock-data.js' %}"></script>
     
     <script>
-        // 1. Traemos los datos reales de tu PostgreSQL
-        const realEmpresas = JSON.parse('{{ empresas_json|escapejs }}' || '[]');
-        const realSedes = JSON.parse('{{ sedes_json|escapejs }}' || '[]');
-        const realDepartamentos = JSON.parse('{{ deptos_json|escapejs }}' || '[]');
-        const realPuestos = JSON.parse('{{ puestos_json|escapejs }}' || '[]');
-        const realEmpleados = JSON.parse('{{ emps_json|escapejs }}' || '[]');
-        const realAsistencias = JSON.parse('{{ asis_json|escapejs }}' || '[]');
-        const realVacaciones = JSON.parse('{{ vac_json|escapejs }}' || '[]');
-        const realDocumentos = JSON.parse('{{ docs_json|escapejs }}' || '[]');
-        const realWeeklyAtt = JSON.parse('{{ weekly_json|escapejs }}' || '[]');
+        // 1. Traemos los datos de PostgreSQL y los hacemos GLOBALES (window.real...)
+        window.realEmpresas = JSON.parse('{{ empresas_json|escapejs }}' || '[]');
+        window.realSedes = JSON.parse('{{ sedes_json|escapejs }}' || '[]');
+        window.realDepartamentos = JSON.parse('{{ deptos_json|escapejs }}' || '[]');
+        window.realPuestos = JSON.parse('{{ puestos_json|escapejs }}' || '[]');
+        window.realEmpleados = JSON.parse('{{ emps_json|escapejs }}' || '[]');
+        window.realAsistencias = JSON.parse('{{ asis_json|escapejs }}' || '[]');
+        window.realVacaciones = JSON.parse('{{ vac_json|escapejs }}' || '[]');
+        window.realDocumentos = JSON.parse('{{ docs_json|escapejs }}' || '[]');
+        window.realWeeklyAtt = JSON.parse('{{ weekly_json|escapejs }}' || '[]');
         
-        // 2. BLINDAJE: Si tu BD está vacía, creamos datos de emergencia para que JS no explote
-        if (realDepartamentos.length === 0) {
-            realDepartamentos.push({ id: 9999, nombre: "Área General", color: "#3b82f6", desc: "Creado por sistema" });
+        // 2. BLINDAJE: Si tu BD está vacía, creamos datos de emergencia
+        if (!window.realDepartamentos || window.realDepartamentos.length === 0) {
+            window.realDepartamentos = [{ id: 9999, nombre: "Área General", color: "#3b82f6", desc: "Creado por sistema" }];
         }
-        
-        if (realSedes.length === 0) {
-            realSedes.push({ id: 9999, nombre: "Sede Principal" });
+        if (!window.realSedes || window.realSedes.length === 0) {
+            window.realSedes = [{ id: 9999, nombre: "Sede Principal" }];
         }
 
         // 3. Revisamos que ningún empleado quede "volando" sin departamento
-        realEmpleados.forEach(emp => {
+        window.realEmpleados.forEach(emp => {
             const id_buscar = emp.deptId || emp.departamento_id;
-            const existeDept = realDepartamentos.find(d => String(d.id) === String(id_buscar));
-            
-            // Si el empleado tiene un departamento borrado o no existe, lo metemos al Área General
+            const existeDept = window.realDepartamentos.find(d => String(d.id) === String(id_buscar));
             if (!existeDept) {
-                emp.deptId = realDepartamentos[0].id;
+                emp.deptId = window.realDepartamentos[0].id;
             }
         });
 
-        // 4. Inyectamos los datos limpios y seguros a tu sistema
-        MOCK.empresas = realEmpresas; 
-        MOCK.sedes = realSedes;
-        MOCK.departamentos = realDepartamentos;
-        MOCK.puestos = realPuestos;
-        MOCK.empleados = realEmpleados;
-        MOCK.asistencias = realAsistencias;
-        MOCK.vacaciones = realVacaciones;
-        MOCK.documentos = realDocumentos;
-        MOCK.weeklyAttendance = realWeeklyAtt;
+        // 4. MOCK TEMPORAL GLOBAL (Para los módulos viejos que aún no arreglamos)
+        window.MOCK = {
+            empresas: window.realEmpresas,
+            sedes: window.realSedes,
+            departamentos: window.realDepartamentos,
+            puestos: window.realPuestos,
+            empleados: window.realEmpleados,
+            asistencias: window.realAsistencias,
+            vacaciones: window.realVacaciones,
+            documentos: window.realDocumentos,
+            weeklyAttendance: window.realWeeklyAtt,
+            saldoVacaciones: { diasAnuales: 30, diasUsados: 10, diasPendientes: 20 }
+        };
     </script>
 
-    <script src="{% static 'js/views/dashboard.js' %}?v=9999"></script>
-    <script src="{% static 'js/views/empleados.js' %}?v=9999"></script>
-    <script src="{% static 'js/views/departamentos.js' %}?v=9999"></script>
-    <script src="{% static 'js/views/asistencia.js' %}?v=9999"></script>
-    <script src="{% static 'js/views/vacaciones.js' %}?v=9999"></script>
-    <script src="{% static 'js/views/documentos.js' %}?v=777777"></script>
-    <script src="{% static 'js/views/reportes.js' %}?v=9999"></script>
-    <script src="{% static 'js/views/configuracion.js' %}?v=9999"></script>
-    <script src="{% static 'js/views/mi-portal.js' %}?v=9999"></script>
-    <script src="{% static 'js/views/mi-asistencia.js' %}?v=9999"></script>
-    <script src="{% static 'js/views/planilla.js' %}?v=5000"></script>
-    <script src="{% static 'js/views/mis-boletas.js' %}?v=5000"></script>
-    <script src="{% static 'js/views/mis-documentos.js' %}?v=5000"></script>
-    <script src="{% static 'js/app.js' %}?v=5000"></script>
+    <script src="{% static 'js/views/dashboard.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/empleados.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/departamentos.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/asistencia.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/vacaciones.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/documentos.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/reportes.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/configuracion.js' %}?v=999999"></script>
+    
+    <script src="{% static 'js/views/mi-portal.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/mi-asistencia.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/planilla.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/mis-boletas.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/mis-documentos.js' %}?v=999999"></script>
+    <script src="{% static 'js/views/mis-vacaciones.js' %}?v=999999"></script>
+    
+    <script src="{% static 'js/app.js' %}?v=999999"></script>
 </body>
 </html>
